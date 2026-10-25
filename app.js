@@ -33,9 +33,12 @@ function chaptersOf(sid) { return CHS.filter(c => c.subj === sid); }
 function allGids(chs) { const out = []; chs.forEach(c => (c.qs || []).forEach(q => out.push(gid(c, q)))); return out; }
 
 /* ================= settings / stats ================= */
-function settings() { return Object.assign({ theme: 'dark', lang: 'en', name: '', goal: 50 }, load('neet_set', {})); }
+function settings() { return Object.assign({ theme: 'light', lang: 'en', name: '', goal: 50, voice: true, vlang: 'hi', vspeed: 'normal', vexpl: false }, load('neet_set', {})); }
 function setSetting(k, v) { const s = settings(); s[k] = v; save('neet_set', s); applyTheme(); render(); }
-function applyTheme() { document.documentElement.setAttribute('data-theme', settings().theme); }
+function applyTheme() {
+  const t = settings().theme; document.documentElement.setAttribute('data-theme', t);
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'dark' ? '#0B0C0F' : '#C2C7CC';
+}
 
 /* per-question stats: gid -> [seen, correct, lastCorrect(0/1)] */
 function qstats() { return load('neet_qs', {}); }
@@ -148,13 +151,135 @@ function qHTML(q) {
 }
 function pointText(c, pid) { const p = (c.points || []).find(x => x.id === pid); return p ? p.t : ''; }
 
+/* ================= voice (bol kar batana) =================
+   Phone ki Text-to-Speech. APK (WebView) khud nahi bol sakta — agar wrapper
+   window.AndroidTTS bridge deta hai to wahi use hota hai (PADHAI jaisa). */
+let VOICES = [], VOICE_TRIES = 0;
+const HAS_TTS = 'speechSynthesis' in window;
+function loadVoices() {
+  if (!HAS_TTS) return;
+  try { VOICES = speechSynthesis.getVoices() || []; } catch (e) { VOICES = []; }
+  // Android par pehle pal getVoices() khaali aata hai — thodi der poochte raho
+  if (!VOICES.length && VOICE_TRIES < 15) { VOICE_TRIES++; setTimeout(loadVoices, 300); }
+}
+if (HAS_TTS) { loadVoices(); try { speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {} }
+function findV(re) { return VOICES.find(v => re.test(v.lang)); }
+function getVoice(lang) {
+  const v = lang === 'hi' ? (findV(/hi-IN/i) || findV(/^hi/i)) : (findV(/en-IN/i) || findV(/en-GB/i) || findV(/^en/i));
+  return v || findV(/^en/i) || VOICES[0] || null;
+}
+function voiceRate() { const sp = settings().vspeed; return sp === 'slow' ? 0.75 : sp === 'fast' ? 1.1 : 0.92; }
+function hasBridge() { return window.AndroidTTS && typeof window.AndroidTTS.speak === 'function'; }
+
+// phone tabhi bolne deta hai jab ek baar tap ho chuka ho
+let TTS_UNLOCKED = false;
+function ttsUnlock() {
+  if (TTS_UNLOCKED || !HAS_TTS) return; TTS_UNLOCKED = true;
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+  loadVoices();
+}
+document.addEventListener('touchstart', ttsUnlock, { once: true, passive: true });
+document.addEventListener('click', ttsUnlock, { once: true });
+
+let TTSKEEP = null;
+function speak(text, lang) {
+  text = String(text || '').trim(); if (!text) return;
+  lang = lang || settings().vlang;
+  if (hasBridge()) { try { window.AndroidTTS.speak(text, lang === 'hi' ? 'hi-IN' : 'en-IN', voiceRate()); } catch (e) {} return; }
+  if (!HAS_TTS) return;
+  ttsUnlock(); shutup();
+  // cancel() aur speak() ek hi tick mein ho to Android line kha jaata hai
+  setTimeout(function () {
+    try {
+      const u = new SpeechSynthesisUtterance(text), v = getVoice(lang);
+      if (v) u.voice = v;
+      u.lang = v ? v.lang : (lang === 'hi' ? 'hi-IN' : 'en-IN');
+      u.rate = voiceRate(); u.pitch = 1.03;
+      speechSynthesis.speak(u);
+      // Chrome Android lambi line beech mein rok deta hai — sirf tab resume karo
+      TTSKEEP = setInterval(function () {
+        try { if (!speechSynthesis.speaking) { clearInterval(TTSKEEP); TTSKEEP = null; } else if (speechSynthesis.paused) speechSynthesis.resume(); } catch (e) {}
+      }, 3000);
+    } catch (e) {}
+  }, 70);
+}
+function shutup() {
+  if (TTSKEEP) { clearInterval(TTSKEEP); TTSKEEP = null; }
+  if (hasBridge()) { try { window.AndroidTTS.stop(); } catch (e) {} }
+  if (HAS_TTS) { try { speechSynthesis.cancel(); } catch (e) {} }
+}
+function plain(html) { const d = document.createElement('div'); d.innerHTML = String(html || '').replace(/<br\s*\/?>/gi, '. ').replace(/<\/(li|p|tr|td)>/gi, '. $&'); return (d.textContent || '').replace(/\s+/g, ' ').replace(/(\.\s*){2,}/g, '. ').trim(); }
+function pickLine(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function callName() { return settings().name || ''; }
+
+const SAY = {
+  hi: {
+    ok: ['शाबाश {n}! आपका जवाब सही है।', 'बहुत बढ़िया {n}! बिल्कुल सही जवाब।', 'वाह {n}! सही जवाब, चार नंबर पक्के।', '{n}, एकदम सही! ऐसे ही चलते रहो।'],
+    fixed: ['शाबाश {n}! ये गलती अब सुधर गई।'],
+    combo: ['कमाल {n}! लगातार {c} सही जवाब!'],
+    bad: ['{n}, आपका जवाब गलत है। सही जवाब ऑप्शन {k} है।', 'ओह {n}, ये गलत हो गया। सही जवाब ऑप्शन {k} है। व्याख्या ध्यान से पढ़ो।', '{n}, कोई बात नहीं। सही जवाब ऑप्शन {k} है।'],
+    test: '{n}, आपका स्कोर {m} में से {s} है। {c} सही, {w} गलत, और {u} छोड़े।',
+    prac: '{n}, आपने {t} में से {c} सवाल सही किए।',
+    hello: 'नमस्ते {n}! नीट की तैयारी में आपका स्वागत है। चलो पढ़ाई शुरू करें।',
+    test1: 'नमस्ते {n}! क्या मेरी आवाज़ सुनाई दे रही है?'
+  },
+  en: {
+    ok: ['Well done {n}! Your answer is correct.', 'Excellent {n}! That is the right answer.', 'Great {n}! Correct, four marks.', '{n}, perfect! Keep going.'],
+    fixed: ['Well done {n}! That mistake is now fixed.'],
+    combo: ['Amazing {n}! {c} correct in a row!'],
+    bad: ['{n}, your answer is wrong. The correct answer is option {k}.', 'Oh {n}, that is wrong. The correct answer is option {k}. Read the explanation carefully.', 'No problem {n}. The correct answer is option {k}.'],
+    test: '{n}, your score is {s} out of {m}. {c} correct, {w} wrong and {u} left.',
+    prac: '{n}, you got {c} out of {t} correct.',
+    hello: 'Hello {n}! Welcome to your NEET preparation. Let us start studying.',
+    test1: 'Hello {n}! Can you hear me?'
+  }
+};
+function say(key, vars) {
+  const st = settings(); if (!st.voice) return;
+  const L = SAY[st.vlang] || SAY.hi; let t = L[key]; if (Array.isArray(t)) t = pickLine(t);
+  vars = Object.assign({ n: callName() }, vars || {});
+  t = t.replace(/\{(\w)\}/g, (_, k) => vars[k] == null ? '' : vars[k]).replace(/^[,\s]+|\s+(?=[,!।.])/g, '').replace(/^\s*,\s*/, '');
+  speak(t, st.vlang);
+}
+/* question aur explanation English mein hain — unhe English voice padhegi (Hindi version ho to Hindi) */
+function readQuestion() {
+  if (!RUN) return; const ent = QIDX[RUN.items[RUN.i]], q = ent.q;
+  const hi = isHi(q);
+  const opts = optsOf(q).map((o, k) => (hi ? 'विकल्प ' : 'Option ') + (k + 1) + '. ' + plain(o)).join('. ');
+  speak(plain(qHTML(q)) + '. ' + opts, hi ? 'hi' : 'en');
+}
+function readExpl() {
+  if (!RUN) return; const q = QIDX[RUN.items[RUN.i]].q, v = V(q);
+  speak((isHi(q) ? 'सही जवाब विकल्प ' : 'The correct answer is option ') + (q.a + 1) + '. ' + plain(v.e), isHi(q) ? 'hi' : 'en');
+}
+function appEnv() {
+  const ua = navigator.userAgent || '';
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const webview = /\bwv\b/i.test(ua) || /; ?wv\)/i.test(ua) || (/Android/i.test(ua) && !/Chrome\/\d/i.test(ua));
+  return { standalone: standalone, webview: webview, bridge: hasBridge() };
+}
+function soundTest() {
+  ttsUnlock(); loadVoices();
+  const e = appEnv(), where = e.bridge ? 'APK (Android TTS bridge)' : e.webview ? 'APK / WebView' : e.standalone ? 'Home-screen app' : 'Chrome browser';
+  const st = settings();
+  speak((SAY[st.vlang] || SAY.hi).test1.replace('{n}', callName()), st.vlang);
+  setTimeout(function () {
+    let m = 'Kahan chal raha hai: ' + where + '\n';
+    if (e.bridge) m += 'Android ki apni awaaz chalu hai.\n\nAwaaz na aaye to media volume badhao.';
+    else if (!HAS_TTS || (e.webview && !VOICES.length)) m += '\nYahan awaaz nahi aa sakti — APK ka WebView khud nahi bolta.\n\nHal: Chrome mein app ka link kholo → ⋮ → "Add to Home screen" / "Install app". Wahan awaaz aayegi.';
+    else if (!VOICES.length) m += '\nPhone mein koi voice nahi mili.\nSettings → Accessibility → Text-to-speech → "Google Speech Services" chalu karo aur Hindi voice download karo.';
+    else m += 'Voice mili: ' + VOICES.length + '\n\nAwaaz na aaye to:\n1. Media volume badhao\n2. Silent / vibrate band karo\n3. Text-to-speech mein Hindi voice download karo';
+    alert(m);
+  }, 1500);
+}
+
 /* ================= app state ================= */
 const state = { screen: 'home', subj: null, cid: null, sheet: null, chTab: 'qs' };
 let RUN = null;        // current practice/test/review session
 let TICK = null;
 let deferredInstall = null;
 
-function go(s) { state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
+function go(s) { shutup(); state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
@@ -174,8 +299,9 @@ function ring(p, txt, sz, col) {
 function render() {
   clearInterval(TICK); TICK = null;
   const app = document.getElementById('app');
-  const fn = SCREENS[state.screen] || SCREENS.home;
-  const withNav = ['home', 'subjects', 'tests', 'progress', 'more'].indexOf(state.screen) >= 0;
+  const needName = !settings().name && ['home', 'subjects', 'tests', 'progress'].indexOf(state.screen) >= 0;
+  const fn = needName ? SCREENS.welcome : (SCREENS[state.screen] || SCREENS.home);
+  const withNav = !needName && ['home', 'subjects', 'tests', 'progress', 'more'].indexOf(state.screen) >= 0;
   document.body.classList.toggle('hasnav', withNav);
   app.innerHTML = fn() + (withNav ? navBar() : '') + (state.sheet ? state.sheet() : '');
   if (state.screen === 'run' && RUN && RUN.mode === 'test') { TICK = setInterval(testTick, 1000); testTick(); }
@@ -187,6 +313,24 @@ function navBar() {
 }
 
 const SCREENS = {};
+
+/* ---------- pehli baar: naam ---------- */
+SCREENS.welcome = function () {
+  return `<div style="text-align:center;margin-top:48px"><img src="icons/icon-192.png" alt="" style="width:104px;height:104px;border-radius:26px;box-shadow:0 0 0 1px rgba(230,185,74,.4),0 18px 40px -14px rgba(230,185,74,.5)">
+    <div class="mont silvertx" style="font-weight:900;font-size:30px;letter-spacing:.06em;margin-top:16px">NEET</div>
+    <div class="muted" style="font-size:14px;margin:8px 0 22px">Aapka naam kya hai? App aapko isi naam se bulayega 🔊</div></div>
+    <div class="card"><input class="txt" id="wn" maxlength="20" placeholder="Jaise: Raj" style="text-align:center;font-size:19px;font-weight:700"
+      onkeydown="if(event.key==='Enter')saveWelcome()">
+    <div id="wnErr" style="color:var(--bad);font-weight:700;font-size:13px;text-align:center;min-height:18px;margin-top:6px"></div>
+    <button class="btn" onclick="saveWelcome()">Chalo shuru karein 🚀</button></div>
+    <div class="muted" style="text-align:center;margin-top:14px;line-height:1.5">💡 Chhota naam likho jo pukarne mein achha lage.<br>Sahi/galat jawab par app isi naam se bolega.</div>`;
+};
+function saveWelcome() {
+  const el = document.getElementById('wn'), name = (el.value || '').trim();
+  if (!name) { document.getElementById('wnErr').textContent = 'Pehle apna naam likho'; el.focus(); return; }
+  const s = settings(); s.name = name; save('neet_set', s);
+  go('home'); say('hello');
+}
 
 /* ---------- Home ---------- */
 SCREENS.home = function () {
@@ -202,10 +346,10 @@ SCREENS.home = function () {
     <button class="iconbtn" onclick="setSetting('theme', settings().theme==='dark'?'light':'dark')">${st.theme === 'dark' ? '☀️' : '🌙'}</button></div>`;
 
   h += `<div class="hero"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-    <div><div class="lbl">Aaj ka target</div><div class="big goldtx">${today}<span style="font-size:18px;color:#9AA0AB;-webkit-text-fill-color:#9AA0AB"> / ${goal}</span></div>
-    <div style="font-size:12.5px;color:#C3C7D0;font-weight:600;margin-top:6px">🔥 ${streak()} din ki streak · ${sm.seen}/${sm.total} questions done</div></div>
+    <div><div class="lbl">Aaj ka target</div><div class="big goldtx">${today}<span style="font-size:18px;color:var(--heroSoft);-webkit-text-fill-color:var(--heroSoft)"> / ${goal}</span></div>
+    <div style="font-size:12.5px;color:var(--heroSoft);font-weight:600;margin-top:6px">🔥 ${streak()} din ki streak · ${sm.seen}/${sm.total} questions done</div></div>
     ${ring(today / goal, Math.min(100, Math.round(today / goal * 100)) + '%', 66)}</div>
-    <div class="bar" style="margin-top:14px;background:rgba(255,255,255,.08)"><i style="width:${sm.total ? sm.seen / sm.total * 100 : 0}%"></i></div></div>`;
+    <div class="bar" style="margin-top:14px;background:var(--heroBar)"><i style="width:${sm.total ? sm.seen / sm.total * 100 : 0}%"></i></div></div>`;
 
   if (saved) {
     h += `<div class="tile" style="margin-top:12px;border-color:var(--gold)" onclick="resumeRun()"><div class="ic">⏸️</div>
@@ -362,7 +506,13 @@ SCREENS.more = function () {
   }
   h += `<div class="tile" onclick="go('about')"><div class="ic">ℹ️</div><div class="g1"><div class="n">NEET exam kaisa hota hai?</div>
       <div class="s">Pattern, marking, question types, tips</div></div><div class="ch">›</div></div>
-    <div class="sec">Naam</div><div class="row"><input class="txt" id="nm" value="${esc(st.name)}" placeholder="Apna naam"><button class="btn sm" style="flex:0 0 90px" onclick="setSetting('name',document.getElementById('nm').value.trim())">Save</button></div>
+    <div class="sec">Naam <span>app isi naam se bulayega</span></div><div class="row"><input class="txt" id="nm" value="${esc(st.name)}" placeholder="Apna naam"><button class="btn sm" style="flex:0 0 90px" onclick="const v=document.getElementById('nm').value.trim();if(v){setSetting('name',v);toast('Naam save ho gaya');say('hello')}">Save</button></div>
+    <div class="sec">Awaaz 🔊 <span>sahi / galat bol kar batana</span></div>
+    <div class="seg"><button class="${st.voice ? 'on' : ''}" onclick="setSetting('voice',true)">🔊 On</button><button class="${!st.voice ? 'on' : ''}" onclick="shutup();setSetting('voice',false)">🔇 Off</button></div>
+    <div class="seg" style="margin-top:8px"><button class="${st.vlang === 'hi' ? 'on' : ''}" onclick="setSetting('vlang','hi')">हिन्दी में बोले</button><button class="${st.vlang === 'en' ? 'on' : ''}" onclick="setSetting('vlang','en')">English</button></div>
+    <div class="seg" style="margin-top:8px">${[['slow', 'Dheere'], ['normal', 'Normal'], ['fast', 'Tez']].map(x => `<button class="${st.vspeed === x[0] ? 'on' : ''}" onclick="setSetting('vspeed','${x[0]}')">${x[1]}</button>`).join('')}</div>
+    <div class="seg" style="margin-top:8px"><button class="${st.vexpl ? 'on' : ''}" onclick="setSetting('vexpl',!settings().vexpl)">${st.vexpl ? '✓ ' : ''}Jawab ke baad explanation bhi bolo</button></div>
+    <button class="btn gh sm" style="margin-top:8px" onclick="soundTest()">🔊 Awaaz test karo</button>
     <div class="sec">Roz ka target <span>questions / day</span></div><div class="seg">` +
     [30, 50, 100, 150, 200].map(n => `<button class="${st.goal === n ? 'on' : ''}" onclick="setSetting('goal',${n})">${n}</button>`).join('') + `</div>
     <div class="sec">Medium</div><div class="seg">
@@ -371,7 +521,7 @@ SCREENS.more = function () {
     <div class="muted" style="margin-top:6px">Hindi sirf un questions mein dikhega jinka Hindi version add hua hai; baaki English mein.</div>
     <div class="sec">Theme</div><div class="seg">
       <button class="${st.theme === 'dark' ? 'on' : ''}" onclick="setSetting('theme','dark')">🌙 Dark</button>
-      <button class="${st.theme === 'light' ? 'on' : ''}" onclick="setSetting('theme','light')">☀️ Light</button></div>
+      <button class="${st.theme === 'light' ? 'on' : ''}" onclick="setSetting('theme','light')">🪞 Silver</button></div>
     <div class="sec">Backup <span>phone badalne par progress na jaye</span></div>
     <div class="row"><button class="btn gh sm" onclick="exportData()">⬇️ Backup file</button><button class="btn gh sm" onclick="document.getElementById('imp').click()">⬆️ Restore</button></div>
     <input type="file" id="imp" accept="application/json,.json" style="display:none" onchange="importData(this.files[0])">
@@ -490,7 +640,14 @@ function pick(k) {
   if (RUN.mode === 'practice') {
     if (RUN.done[i]) return;
     RUN.ans[i] = k; RUN.done[i] = true;
-    const ok = QIDX[g].q.a === k; recordAnswer(g, ok);
+    const q = QIDX[g].q, ok = q.a === k, wasWrong = (qstats()[g] || [0, 0, 1])[2] === 0;
+    recordAnswer(g, ok);
+    RUN.combo = ok ? (RUN.combo || 0) + 1 : 0;
+    if (!ok) say('bad', { k: q.a + 1 });
+    else if (wasWrong) say('fixed');
+    else if (RUN.combo >= 5 && RUN.combo % 5 === 0) say('combo', { c: RUN.combo });
+    else say('ok');
+    if (settings().vexpl) setTimeout(function () { if (settings().voice) readExplAfter(); }, 2600);
     if (RUN.chapterSeq) { const p = load('neet_pos', {}); p[RUN.chapterSeq] = i + 1; save('neet_pos', p); }
     render();
     if (navigator.vibrate) navigator.vibrate(ok ? 15 : [30, 40, 30]);
@@ -498,6 +655,11 @@ function pick(k) {
   } else if (RUN.mode === 'test') {
     RUN.ans[i] = RUN.ans[i] === k ? null : k; saveRun(); render();
   }
+}
+function readExplAfter() {
+  // feedback line khatam hone ke baad explanation padho
+  if (HAS_TTS && !hasBridge() && speechSynthesis.speaking) return setTimeout(readExplAfter, 400);
+  if (state.screen === 'run' && RUN && RUN.mode === 'practice' && RUN.done[RUN.i]) readExpl();
 }
 function clearAns() { RUN.ans[RUN.i] = null; saveRun(); render(); }
 function markNext() { RUN.rev[RUN.i] = !RUN.rev[RUN.i]; if (RUN.rev[RUN.i] && RUN.i < RUN.items.length - 1) goQ(RUN.i + 1); else { saveRun(); render(); } }
@@ -527,7 +689,8 @@ SCREENS.run = function () {
 
   h += `<div class="card"><div class="qhead"><div class="qno">Q ${i + 1} / ${n}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
     <span class="tag">${subjOf(c.subj).name}</span>${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
-    ${mode === 'test' ? `<button class="tag" style="border:none;cursor:pointer" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>` : ''}</div></div>
+    ${mode === 'test' ? `<button class="tag" style="border:none;cursor:pointer" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>` : ''}
+    <button class="tag" style="border:none;cursor:pointer" onclick="readQuestion()" title="Sawaal suno">🔊</button></div></div>
     <div class="qtext">${qHTML(q)}</div></div><div style="margin-top:12px">`;
 
   opts.forEach(function (o, k) {
@@ -543,7 +706,7 @@ SCREENS.run = function () {
     const head = sel == null ? '<span style="color:var(--soft)">Chhoda tha · sahi jawab (' + (q.a + 1) + ')</span>'
       : ok ? '<span style="color:var(--ok)">✓ Sahi jawab! +4</span>' : '<span style="color:var(--bad)">✗ Galat · sahi jawab (' + (q.a + 1) + ')</span>';
     const pts = (q.p || []).map(p => pointText(c, p)).filter(Boolean);
-    h += `<div class="expl" id="expl"><div class="h">${head}</div>${v.e || ''}
+    h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="tag" style="border:none;cursor:pointer;flex:0 0 auto" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}
       ${pts.length ? '<div class="pt">📌 <b>Point:</b> ' + pts.join('<br>📌 ') + '</div>' : ''}
       <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div></div>`;
   }
@@ -619,11 +782,12 @@ SCREENS.result = function () {
   const dur = ((RUN.finished || Date.now()) - RUN.start) / 1000;
   const isTest = RUN.mode === 'test';
   const p = sc.max ? Math.max(0, sc.score) / sc.max : 0;
+  if (!RUN.spoken) { RUN.spoken = true; setTimeout(function () { isTest ? say('test', { s: sc.score, m: sc.max, c: sc.c, w: sc.w, u: sc.u }) : say('prac', { c: sc.c, t: att }); }, 300); }
   const msg = p >= .85 ? 'Zabardast! 🏆' : p >= .65 ? 'Bahut badhiya! 💪' : p >= .4 ? 'Achha hai — aur practice! 📚' : 'Galtiyon se seekho — dobara karo 🎯';
   let h = `<div class="topbar"><button class="link" onclick="quitRun()">‹ Back</button><div class="muted">${esc(RUN.title)}</div></div>
     <div class="hero" style="text-align:center"><div class="lbl">${isTest ? 'NEET score' : 'Practice score'}</div>
-    <div class="big goldtx" style="font-size:52px;margin-top:6px">${sc.score}<span style="font-size:20px;-webkit-text-fill-color:#9AA0AB"> / ${sc.max}</span></div>
-    <div style="margin-top:8px;font-weight:700;color:#E6E8EC">${msg}</div></div>
+    <div class="big goldtx" style="font-size:52px;margin-top:6px">${sc.score}<span style="font-size:20px;-webkit-text-fill-color:var(--heroSoft)"> / ${sc.max}</span></div>
+    <div style="margin-top:8px;font-weight:700;color:var(--heroInk)">${msg}</div></div>
     <div class="stats"><div class="stat"><b style="color:var(--ok)">${sc.c}</b><span>Sahi (+${sc.c * 4})</span></div>
       <div class="stat"><b style="color:var(--bad)">${sc.w}</b><span>Galat (−${sc.w})</span></div>
       <div class="stat"><b>${sc.u}</b><span>Chhode</span></div></div>
