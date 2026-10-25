@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.2';
+const APP_VER = 'v1.3';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -38,6 +38,12 @@ function allGids(chs) { const out = []; chs.forEach(c => (c.qs || []).forEach(q 
 /* ================= settings / stats ================= */
 function settings() { return Object.assign({ theme: 'light', lang: 'en', name: '', goal: 50, voice: true, vlang: 'hi', vspeed: 'normal', vexpl: false }, load('neet_set', {})); }
 function setSetting(k, v) { const s = settings(); s[k] = v; save('neet_set', s); applyTheme(); render(); }
+(function () {
+  // ek baar: default ab Silver (ShopSathi) theme
+  if (load('neet_theme_v13', false)) return;
+  const s = load('neet_set', null); if (s && s.theme === 'dark') { s.theme = 'light'; save('neet_set', s); }
+  save('neet_theme_v13', true);
+})();
 function applyTheme() {
   const t = settings().theme; document.documentElement.setAttribute('data-theme', t);
   const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'dark' ? '#0B0C0F' : '#C2C7CC';
@@ -173,6 +179,9 @@ function getVoice(lang) {
 }
 function voiceRate() { const sp = settings().vspeed; return sp === 'slow' ? 0.75 : sp === 'fast' ? 1.1 : 0.92; }
 function hasBridge() { return window.AndroidTTS && typeof window.AndroidTTS.speak === 'function'; }
+/* apk-factory wale APK ka native bridge: ANVAlert.speak(text) — phone ka TTS (Hindi voice) */
+function hasAnv() { return window.ANVAlert && typeof window.ANVAlert.speak === 'function'; }
+try { if (hasAnv() && window.ANVAlert.prepare) window.ANVAlert.prepare(); } catch (e) {}
 
 // phone tabhi bolne deta hai jab ek baar tap ho chuka ho
 let TTS_UNLOCKED = false;
@@ -188,6 +197,7 @@ let TTSKEEP = null;
 function speak(text, lang) {
   text = String(text || '').trim(); if (!text) return;
   lang = lang || settings().vlang;
+  if (hasAnv()) { try { window.ANVAlert.speak(text); } catch (e) {} return; }
   if (hasBridge()) { try { window.AndroidTTS.speak(text, lang === 'hi' ? 'hi-IN' : 'en-IN', voiceRate()); } catch (e) {} return; }
   if (!HAS_TTS) return;
   ttsUnlock(); shutup();
@@ -208,12 +218,16 @@ function speak(text, lang) {
 }
 function shutup() {
   if (TTSKEEP) { clearInterval(TTSKEEP); TTSKEEP = null; }
+  if (hasAnv() && window.ANVAlert.stopSpeak) { try { window.ANVAlert.stopSpeak(); } catch (e) {} }
   if (hasBridge()) { try { window.AndroidTTS.stop(); } catch (e) {} }
   if (HAS_TTS) { try { speechSynthesis.cancel(); } catch (e) {} }
 }
 function plain(html) { const d = document.createElement('div'); d.innerHTML = String(html || '').replace(/<br\s*\/?>/gi, '. ').replace(/<\/(li|p|tr|td)>/gi, '. $&'); return (d.textContent || '').replace(/\s+/g, ' ').replace(/(\.\s*){2,}/g, '. ').trim(); }
 function pickLine(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function callName() { return settings().name || ''; }
+function callName() {
+  // "YUKTI" jaisa caps naam TTS akshar-akshar padhta hai — bolte waqt "Yukti" karo
+  return (settings().name || '').replace(/[A-Za-z]+/g, w => w === w.toUpperCase() ? w.charAt(0) + w.slice(1).toLowerCase() : w);
+}
 
 const SAY = {
   hi: {
@@ -259,16 +273,17 @@ function appEnv() {
   const ua = navigator.userAgent || '';
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const webview = /\bwv\b/i.test(ua) || /; ?wv\)/i.test(ua) || (/Android/i.test(ua) && !/Chrome\/\d/i.test(ua));
-  return { standalone: standalone, webview: webview, bridge: hasBridge() };
+  return { standalone: standalone, webview: webview, bridge: hasBridge() || hasAnv() };
 }
 function soundTest() {
   ttsUnlock(); loadVoices();
-  const e = appEnv(), where = e.bridge ? 'APK (Android TTS bridge)' : e.webview ? 'APK / WebView' : e.standalone ? 'Home-screen app' : 'Chrome browser';
+  const e = appEnv(), where = hasAnv() ? 'APK (apk-factory awaaz)' : e.bridge ? 'APK (Android TTS bridge)' : e.webview ? 'APK / WebView' : e.standalone ? 'Home-screen app' : 'Chrome browser';
   const st = settings();
   speak((SAY[st.vlang] || SAY.hi).test1.replace('{n}', callName()), st.vlang);
   setTimeout(function () {
     let m = 'Kahan chal raha hai: ' + where + '\n';
-    if (e.bridge) m += 'Android ki apni awaaz chalu hai.\n\nAwaaz na aaye to media volume badhao.';
+    if (e.bridge) m += 'Android ki apni awaaz chalu hai.' + (hasAnv() && window.ANVAlert.ttsReady && !window.ANVAlert.ttsReady() ? '\n(Pehli baar 1-2 second lagte hain — dobara test karo.)' : '') +
+      '\n\nAwaaz na aaye to:\n1. Media volume badhao\n2. Settings → Text-to-speech → Google Speech Services chalu karo, Hindi voice download karo';
     else if (!HAS_TTS || (e.webview && !VOICES.length)) m += '\nYahan awaaz nahi aa sakti — APK ka WebView khud nahi bolta.\n\nHal: Chrome mein app ka link kholo → ⋮ → "Add to Home screen" / "Install app". Wahan awaaz aayegi.';
     else if (!VOICES.length) m += '\nPhone mein koi voice nahi mili.\nSettings → Accessibility → Text-to-speech → "Google Speech Services" chalu karo aur Hindi voice download karo.';
     else m += 'Voice mili: ' + VOICES.length + '\n\nAwaaz na aaye to:\n1. Media volume badhao\n2. Silent / vibrate band karo\n3. Text-to-speech mein Hindi voice download karo';
