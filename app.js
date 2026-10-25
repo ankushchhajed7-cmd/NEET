@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.11';
+const APP_VER = 'v1.12';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -782,7 +782,7 @@ SCREENS.ask = function () {
   msgs.forEach(function (m, i) {
     if (m.role === 'user') chat += `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><div style="max-width:85%;background:var(--gun,#2A2D31);color:#F2F3F6;font-size:14.5px;line-height:1.5;padding:10px 13px;border-radius:16px 16px 4px 16px;white-space:pre-wrap">${esc(m.text)}</div></div>`;
     else chat += `<div style="margin-bottom:10px;max-width:92%"><div style="background:var(--surface2);border:1px solid var(--line);font-size:14.5px;line-height:1.6;padding:10px 13px;border-radius:16px 16px 16px 4px;white-space:pre-wrap">${esc(m.text)}</div>
-      <button class="link" style="font-size:12.5px;padding:4px 2px" onclick="askSpeak(${i})">🔊 Suno</button></div>`;
+      <button class="suno" style="margin-top:8px" onclick="askSpeak(${i})">🔊 Suno</button></div>`;
   });
   if (state.askBusy) chat += '<div class="muted" style="padding:8px 4px">Soch rahe hain… 💭</div>';
   const ideas = ['Tapetum ka kaam kya hai?', 'Double fertilisation samjhao', 'Albuminous aur non-albuminous seed mein farak', 'Embryo sac 7-celled 8-nucleate kyun?', 'Apomixis aur parthenocarpy mein farak'];
@@ -907,7 +907,7 @@ SCREENS.run = function () {
   h += `<div class="card"><div class="qhead"><div class="qno">Q ${i + 1} / ${n}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
     <span class="tag">${subjOf(c.subj).name}</span>${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
     ${mode === 'test' ? `<button class="tag" style="border:none;cursor:pointer" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>` : ''}
-    <button class="tag" style="border:none;cursor:pointer" onclick="readQuestion()" title="Sawaal suno">🔊</button></div></div>
+    <button class="suno" style="font-size:13px;padding:6px 12px" onclick="readQuestion()" title="Sawaal suno">🔊 Suno</button></div></div>
     <div class="qtext">${qHTML(q)}</div></div><div style="margin-top:12px">`;
 
   opts.forEach(function (o, k) {
@@ -923,7 +923,7 @@ SCREENS.run = function () {
     const head = sel == null ? '<span style="color:var(--soft)">Chhoda tha · sahi jawab (' + (q.a + 1) + ')</span>'
       : ok ? '<span style="color:var(--ok)">✓ Sahi jawab! +4</span>' : '<span style="color:var(--bad)">✗ Galat · sahi jawab (' + (q.a + 1) + ')</span>';
     const pts = (q.p || []).map(p => pointText(c, p)).filter(Boolean);
-    h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="tag" style="border:none;cursor:pointer;flex:0 0 auto" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}
+    h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="suno" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}
       ${pts.length ? '<div class="pt">📌 <b>Point:</b> ' + pts.join('<br>📌 ') + '</div>' : ''}
       <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div>
       <button class="btn gh sm glow" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
