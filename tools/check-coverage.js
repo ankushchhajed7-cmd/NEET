@@ -15,7 +15,7 @@ const MIN = minIdx > 0 ? +process.argv[minIdx + 1] : 1;
 
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
-const scripts = [...html.matchAll(/<script src="(data\/[^"]+)"/g)].map(m => m[1]);
+const scripts = [...html.matchAll(/'(data\/[^']+\.js)'/g)].map(m => m[1]);
 
 const ctx = { window: {} };
 vm.createContext(ctx);
@@ -33,7 +33,7 @@ function walk(d) { return fs.readdirSync(d, { withFileTypes: true }).flatMap(e =
 const onDisk = walk(path.join(root, 'data')).filter(f => f.endsWith('.js')).map(f => path.relative(root, f).split(path.sep).join('/'));
 console.log('Files');
 onDisk.forEach(f => {
-  if (scripts.indexOf(f) < 0) err(f + ' index.html mein <script> se nahi juda');
+  if (scripts.indexOf(f) < 0) err(f + ' index.html ki file list mein nahi juda');
   if (sw.indexOf("'./" + f + "'") < 0) err(f + ' sw.js FILES list mein nahi hai (offline nahi chalega)');
 });
 

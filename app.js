@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.3';
+const APP_VER = 'v1.4';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -580,15 +580,21 @@ SCREENS.about = function () {
       6️⃣ Mock mein ~1 min per question; Biology jaldi karke Physics ke liye time bachao.</div>
     <div class="muted" style="margin:14px 2px;line-height:1.5">Exam date, form aur official rules ke liye har saal NTA ka information bulletin (neet.nta.nic.in) zaroor dekhein.</div>`;
 };
-/* cache aur service worker saaf karke naya version load — progress (localStorage) safe rehti hai */
+/* Naya version laao. APK ka WebView files ko apne cache mein ~10 min rakhta hai, isliye SW/cache
+   saaf karke har file naye ?v= URL se mangwao (index.html ka loader neet_bust padhta hai).
+   Progress (localStorage) ko kuch nahi hota. */
+let REFRESHING = false;
 async function appRefresh() {
-  if (!confirm('App ka naya version laayein? (Progress safe rahega)')) return;
+  if (REFRESHING) return; REFRESHING = true;
   toast('Naya version aa raha hai…');
+  // pehle SW hatao (warna wahi beech mein purani file de deta hai), phir har file taaza mangwao
   try {
-    if (window.caches) { const ks = await caches.keys(); for (const k of ks) await caches.delete(k); }
     if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); for (const r of rs) await r.unregister(); }
+    if (window.caches) { const ks = await caches.keys(); for (const k of ks) await caches.delete(k); }
   } catch (e) {}
-  location.reload();
+  const v = String(Date.now());
+  try { localStorage.setItem('neet_bust', v); } catch (e) {}
+  location.replace(location.pathname + '?v=' + v);
 }
 function doInstall() { if (!deferredInstall) return; deferredInstall.prompt(); deferredInstall.userChoice.finally(() => { deferredInstall = null; render(); }); }
 function exportData() {
@@ -859,3 +865,10 @@ if ('serviceWorker' in navigator) {
 }
 applyTheme();
 render();
+(function () {
+  // update ke baad ek baar batao, aur URL se ?v= hata do
+  const last = load('neet_lastver', null);
+  if (last && last !== APP_VER) toast('NEET ' + APP_VER + ' aa gaya ✅');
+  save('neet_lastver', APP_VER);
+  if (/[?&]v=/.test(location.search)) try { history.replaceState(null, '', location.pathname); } catch (e) {}
+})();

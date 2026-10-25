@@ -1,7 +1,7 @@
 /* NEET service worker — network first, offline fallback.
    Har update par CACHE ka number badal do: neet-v2, neet-v3 ...
    Naya chapter file add karo to FILES list mein bhi jodo (offline ke liye). */
-const CACHE = 'neet-v4';
+const CACHE = 'neet-v5';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
@@ -27,8 +27,10 @@ self.addEventListener('activate', e => {
 // Net chale to hamesha taaza file; net na ho to cache se (offline padhai).
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // apni files hamesha server se check karo (no-cache = ETag se revalidate), taaki purana version na atke
+  const own = new URL(e.request.url).origin === self.location.origin;
   e.respondWith(
-    fetch(e.request)
+    (own ? fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(e.request))
       .then(res => {
         if (res.ok) {
           const copy = res.clone();
