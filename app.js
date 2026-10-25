@@ -2,6 +2,9 @@
    Vanilla JS, saara data localStorage mein. Content data/*.js files se aata hai. */
 'use strict';
 
+/* Har release par badhao (sw.js ka CACHE bhi) */
+const APP_VER = 'v1.2';
+
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 function load(k, d) { try { const x = localStorage.getItem(k); return x ? JSON.parse(x) : d; } catch (e) { return d; } }
@@ -342,8 +345,10 @@ SCREENS.home = function () {
   const hr = new Date().getHours();
   const hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
   let h = `<div class="topbar"><div class="brand"><img src="icons/icon-192.png" alt="">
-    <div><div class="t silvertx">NEET</div><div class="st">${hello}${st.name ? ', ' + esc(st.name) : ''} ✨</div></div></div>
-    <button class="iconbtn" onclick="setSetting('theme', settings().theme==='dark'?'light':'dark')">${st.theme === 'dark' ? '☀️' : '🌙'}</button></div>`;
+    <div><div class="t silvertx">NEET <span class="tag g" style="font-family:Inter,sans-serif;font-size:10.5px;letter-spacing:0;vertical-align:4px">${APP_VER}</span></div>
+    <div class="st">${hello}${st.name ? ', ' + esc(st.name) : ''} ✨</div></div></div>
+    <div style="display:flex;gap:8px"><button class="iconbtn" title="Refresh — naya version laao" onclick="appRefresh()">🔄</button>
+    <button class="iconbtn" onclick="setSetting('theme', settings().theme==='dark'?'light':'dark')">${st.theme === 'dark' ? '☀️' : '🌙'}</button></div></div>`;
 
   h += `<div class="hero"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
     <div><div class="lbl">Aaj ka target</div><div class="big goldtx">${today}<span style="font-size:18px;color:var(--heroSoft);-webkit-text-fill-color:var(--heroSoft)"> / ${goal}</span></div>
@@ -529,7 +534,7 @@ SCREENS.more = function () {
       ${CHS.length} chapters · ${Object.keys(QIDX).length} questions · ${CHS.reduce((n, c) => n + (c.points || []).length, 0)} points<br>
       Marking: +4 sahi, −1 galat, 0 chhoda (NEET pattern)</div>
     <button class="btn gh sm" style="margin-top:22px;color:var(--bad)" onclick="resetAll()">Saari progress mitao</button>
-    <div class="muted" style="text-align:center;margin-top:18px">NEET · v1</div>`;
+    <div style="text-align:center;margin-top:18px"><button class="link" style="font-size:12.5px" onclick="appRefresh()">🔄 NEET ${APP_VER} · Refresh</button></div>`;
   return h;
 };
 SCREENS.about = function () {
@@ -560,6 +565,16 @@ SCREENS.about = function () {
       6️⃣ Mock mein ~1 min per question; Biology jaldi karke Physics ke liye time bachao.</div>
     <div class="muted" style="margin:14px 2px;line-height:1.5">Exam date, form aur official rules ke liye har saal NTA ka information bulletin (neet.nta.nic.in) zaroor dekhein.</div>`;
 };
+/* cache aur service worker saaf karke naya version load — progress (localStorage) safe rehti hai */
+async function appRefresh() {
+  if (!confirm('App ka naya version laayein? (Progress safe rahega)')) return;
+  toast('Naya version aa raha hai…');
+  try {
+    if (window.caches) { const ks = await caches.keys(); for (const k of ks) await caches.delete(k); }
+    if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); for (const r of rs) await r.unregister(); }
+  } catch (e) {}
+  location.reload();
+}
 function doInstall() { if (!deferredInstall) return; deferredInstall.prompt(); deferredInstall.userChoice.finally(() => { deferredInstall = null; render(); }); }
 function exportData() {
   const o = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.indexOf('neet_') === 0) o[k] = localStorage.getItem(k); }
