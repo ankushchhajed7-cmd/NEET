@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.10';
+const APP_VER = 'v1.11';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -57,7 +57,6 @@ function recordAnswer(g, ok) {
   const s = qstats(); const r = s[g] || [0, 0, 0];
   r[0]++; if (ok) r[1]++; r[2] = ok ? 1 : 0; s[g] = r; save('neet_qs', s);
   bumpDay();
-  if (ok) { const dc = load('neet_dayc', {}), t = todayKey(); dc[t] = (dc[t] || 0) + 1; save('neet_dayc', dc); }
 }
 function dkey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function todayKey() { return dkey(new Date()); }
@@ -300,7 +299,7 @@ let RUN = null;        // current practice/test/review session
 let TICK = null;
 let deferredInstall = null;
 
-function go(s) { shutup(); if (s !== 'report') state.parentOk = false; state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
+function go(s) { shutup(); state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
@@ -363,7 +362,7 @@ SCREENS.home = function () {
   const hr = new Date().getHours();
   const hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
   let h = `<div class="topbar"><div class="brand"><img src="icons/icon-192.png" alt="">
-    <div><div class="t silvertx">NEET <span class="tag g" style="font-family:Inter,sans-serif;font-size:10.5px;letter-spacing:0;vertical-align:4px;cursor:default" onclick="verTap()">${APP_VER}</span></div>
+    <div><div class="t silvertx">NEET <span class="tag g" style="font-family:Inter,sans-serif;font-size:10.5px;letter-spacing:0;vertical-align:4px">${APP_VER}</span></div>
     <div class="st">${hello}${st.name ? ', ' + esc(st.name) : ''} ✨</div></div></div>
     <div style="display:flex;gap:8px"><button class="iconbtn" title="Refresh — naya version laao" onclick="appRefresh()">🔄</button>
     <button class="iconbtn" onclick="setSetting('theme', settings().theme==='dark'?'light':'dark')">${st.theme === 'dark' ? '☀️' : '🌙'}</button></div></div>`;
@@ -617,7 +616,9 @@ function importData(f) {
 }
 function resetAll() {
   if (!confirm('Saari progress, galtiyan, bookmarks aur test history mit jayegi. Pakka?')) return;
-  Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && k !== 'neet_set').forEach(k => localStorage.removeItem(k));
+  // naam/settings aur Gemini key bachi rahe
+  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13'];
+  Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && keep.indexOf(k) < 0).forEach(k => localStorage.removeItem(k));
   go('home');
 }
 
@@ -644,12 +645,11 @@ function askSave(m) { save('neet_chat', m.slice(-40)); }
 function askKey() { return load('neet_key', '') || load('padhai_key', ''); }   // PADHAI wali key bhi chalegi (same site)
 function openAsk(fromRun) { state.askBack = fromRun ? 'run' : 'home'; state.askBusy = false; go('ask'); }
 function askSetKey() {
-  state.askBadKey = false;
   const el = document.getElementById('askKeyInput'), k = el ? el.value.trim() : '';
   if (!k) { alert('Pehle API key paste karo.'); return; }
   save('neet_key', k); save('neet_model', ''); render();
 }
-function askForgetKey() { if (!confirm('API key hata dein?')) return; save('neet_key', ''); save('padhai_key', ''); render(); }
+function askForgetKey() { if (!confirm('Kya sach mein purani API key hata kar nayi daalni hai?')) return; save('neet_key', ''); save('padhai_key', ''); render(); }
 function askClear() { if (!confirm('Poori baat-cheet mita dein?')) return; askSave([]); render(); }
 function askChip(t) { const el = document.getElementById('askInput'); if (el) { el.value = t; askSend(); } }
 function askScrollEnd() { const b = document.getElementById('askBox'); if (b) b.scrollTop = b.scrollHeight + 9999; }
@@ -715,7 +715,6 @@ async function askSend(text) {
   if (!q) return;
   if (!askKey()) { alert('Pehle API key daalo.'); return; }
   const msgs = askMsgs(); msgs.push({ role: 'user', text: q }); askSave(msgs);
-  const dd = load('neet_doubts', {}); dd[todayKey()] = (dd[todayKey()] || 0) + 1; save('neet_doubts', dd);
   if (el) el.value = '';
   state.askBusy = true; render(); askScrollEnd();
   try {
@@ -723,11 +722,14 @@ async function askSend(text) {
     const m2 = askMsgs(); m2.push({ role: 'ai', text: ans.replace(/\*\*/g, '').replace(/^#+\s*/gm, '') }); askSave(m2);
   } catch (e) {
     const msg = String(e.message || '');
-    if (/API[_ ]?key not valid|API_KEY_INVALID|api key expired|invalid api key/i.test(msg)) {
-      save('neet_key', ''); save('padhai_key', ''); save('neet_model', '');
-      state.askBusy = false; state.askBadKey = true; render(); return;
-    }
-    const m2 = askMsgs(); m2.push({ role: 'ai', text: 'Abhi jawab nahi mil paaya 😔\nInternet check karke phir se try karo.\n\n(' + (msg || 'network problem') + ')' }); askSave(m2);
+    // key kabhi apne aap nahi hatti — sirf "API key badlo" se. Yahan bas saaf bata do.
+    const bad = /API[_ ]?key not valid|API_KEY_INVALID|api key expired|invalid api key/i.test(msg);
+    save('neet_model', '');
+    const m2 = askMsgs();
+    m2.push({ role: 'ai', text: bad
+      ? 'Google keh raha hai ki ye API key kaam nahi kar rahi 🔑\nKey save hai, hatayi nahi gayi. Agar baar-baar aaye to neeche "API key badlo" se nayi key daalo.\n\n(' + msg + ')'
+      : 'Abhi jawab nahi mil paaya 😔\nInternet check karke phir se try karo.\n\n(' + (msg || 'network problem') + ')' });
+    askSave(m2);
   }
   state.askBusy = false; render(); askScrollEnd();
 }
@@ -762,7 +764,6 @@ SCREENS.ask = function () {
     return `<div class="topbar">${back}<div class="muted">Doubt poocho</div></div>
       <div class="card"><div style="text-align:center;font-size:40px">🧑‍🏫🔑</div>
       <div class="h1" style="text-align:center;font-size:20px;margin:6px 0 10px">Ek baar setup karna hai</div>
-      ${state.askBadKey ? '<div class="expl" style="border-left-color:var(--bad);color:var(--bad);margin-bottom:12px">Purani API key kaam nahi kar rahi thi, isliye hata di. Nayi key daalo.</div>' : ''}
       <div style="font-size:14.5px;line-height:1.7;color:var(--ink2)">Doubt solve karne ke liye ek <b>free Google Gemini API key</b> chahiye:<br>
       <b>1.</b> Chrome mein kholo: <b style="color:var(--gold)">aistudio.google.com/apikey</b><br><b>2.</b> Google account se login karo<br>
       <b>3.</b> "Create API key" dabao<br><b>4.</b> Key copy karke neeche paste karo</div>
@@ -796,99 +797,6 @@ SCREENS.ask = function () {
     <button class="btn gh sm" style="margin-top:10px" onclick="askForgetKey()">🔑 API key badlo</button>`;
 };
 
-/* ================= Parent report (papa ke liye) ================= */
-/* padhai ka samay: app khula ho aur padhai wali screen par ho to har 15 sec jodo */
-const STUDY_SCREENS = ['run', 'chapter', 'ask', 'result'];
-setInterval(function () {
-  if (document.visibilityState !== 'visible' || STUDY_SCREENS.indexOf(state.screen) < 0) return;
-  const tm = load('neet_time', {}), t = todayKey(); tm[t] = (tm[t] || 0) + 15; save('neet_time', tm);
-}, 15000);
-function mins(sec) { sec = Math.round((sec || 0) / 60); return sec < 60 ? sec + ' min' : Math.floor(sec / 60) + ' ghanta' + (sec % 60 ? ' ' + (sec % 60) + ' min' : ''); }
-function dayStats(d) {
-  const k = dkey(d);
-  const n = load('neet_days', {})[k] || 0, c = load('neet_dayc', {})[k], tm = load('neet_time', {})[k] || 0;
-  const tests = load('neet_hist', []).filter(x => x.day === k), doubts = load('neet_doubts', {})[k] || 0;
-  return { k: k, d: d, n: n, c: c, acc: (c != null && n) ? c / n : null, tm: tm, tests: tests, doubts: doubts };
-}
-function reportData() {
-  const all = allGids(CHS), sm = summary(all), s = qstats();
-  const today = dayStats(new Date()), week = [];
-  for (let i = 0; i < 7; i++) week.push(dayStats(new Date(Date.now() - i * 86400000)));
-  const hist = load('neet_hist', []);
-  const rv = revised(); let pts = 0, ptsRev = 0;
-  CHS.forEach(c => { pts += (c.points || []).length; ptsRev += Object.keys(rv[c.id] || {}).length; });
-  const totTime = Object.values(load('neet_time', {})).reduce((a, b) => a + b, 0);
-  const chs = CHS.map(c => ({ c: c, sm: summary(allGids([c])), rev: Object.keys(rv[c.id] || {}).length }));
-  // kamzor points: kam se kam 2 baar try, sabse kam accuracy
-  const weak = [];
-  CHS.forEach(c => (c.points || []).forEach(p => {
-    let a = 0, k = 0; (c.qs || []).forEach(q => { if ((q.p || []).indexOf(p.id) >= 0) { const r = s[gid(c, q)]; if (r) { a += r[0]; k += r[1]; } } });
-    if (a >= 2 && k / a < 0.6) weak.push({ c: c, p: p, acc: k / a });
-  }));
-  weak.sort((x, y) => x.acc - y.acc);
-  return { sm: sm, today: today, week: week, hist: hist, pts: pts, ptsRev: ptsRev, totTime: totTime, chs: chs, weak: weak.slice(0, 5),
-    mk: mistakes().length, streak: streak() };
-}
-function niceDay(d) { const D = ['Ravi', 'Som', 'Mangal', 'Budh', 'Guru', 'Shukra', 'Shani']; return D[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1); }
-/* Report chhupi hai: Home par version badge 5 baar tap -> PIN -> report. Kahin aur link nahi. */
-let VER_TAPS = 0, VER_T0 = 0;
-function verTap() {
-  const now = Date.now(); if (now - VER_T0 > 3000) VER_TAPS = 0;
-  if (!VER_TAPS) VER_T0 = now; VER_TAPS++;
-  if (VER_TAPS >= 5) { VER_TAPS = 0; state.pinErr = ''; go('pin'); }
-}
-SCREENS.pin = function () {
-  const has = !!load('neet_ppin', '');
-  return `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div></div></div>
-    <div style="text-align:center;margin-top:40px"><div style="font-size:40px">🔒</div>
-    <div class="mont" style="font-weight:800;font-size:18px;margin:8px 0 4px">${has ? 'PIN daalo' : 'Naya 4-digit PIN banao'}</div>
-    <div class="muted">${has ? '' : 'Ye PIN yaad rakhna — isi se ye hissa khulega'}</div></div>
-    <div class="card" style="margin-top:16px"><input class="txt" id="pin1" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;font-size:24px;letter-spacing:.5em" onkeydown="if(event.key==='Enter')pinGo()">
-    ${has ? '' : '<input class="txt" id="pin2" type="password" inputmode="numeric" maxlength="4" placeholder="Dobara" style="text-align:center;font-size:24px;letter-spacing:.5em;margin-top:8px">'}
-    <div style="color:var(--bad);font-weight:700;font-size:13px;text-align:center;min-height:18px;margin-top:6px">${state.pinErr || ''}</div>
-    <button class="btn" onclick="pinGo()">Kholo</button></div>`;
-};
-function pinGo() {
-  const a = (document.getElementById('pin1').value || '').trim(), saved = load('neet_ppin', '');
-  if (!/^\d{4}$/.test(a)) { state.pinErr = '4 ank ka PIN likho'; return render(); }
-  if (!saved) {
-    const b = (document.getElementById('pin2').value || '').trim();
-    if (a !== b) { state.pinErr = 'Dono PIN alag hain'; return render(); }
-    save('neet_ppin', a);
-  } else if (a !== saved) { state.pinErr = 'Galat PIN'; return render(); }
-  state.parentOk = true; go('report');
-}
-SCREENS.report = function () {
-  if (!state.parentOk) return SCREENS.home();
-  const R = reportData(), t = R.today, nm = esc(callName());
-  const row = (a, b) => `<div class="pt-row" style="align-items:center;padding:9px 0"><div class="t" style="color:var(--ink2)">${a}</div><div class="mont" style="font-weight:800;text-align:right">${b}</div></div>`;
-  let h = `<div class="topbar"><button class="link" onclick="state.parentOk=false;go('home')">‹ Back</button><div class="muted">Report</div></div>
-    <div class="h1">👨‍👩‍👧 ${nm} ki padhai</div><div class="muted" style="margin-top:4px">${niceDay(new Date())} · NEET app ${APP_VER}</div>
-    <div class="sec">Aaj</div>
-    <div class="stats"><div class="stat"><b>${t.n}</b><span>Sawaal kiye</span></div><div class="stat"><b style="color:var(--ok)">${t.c == null ? '—' : t.c}</b><span>Sahi</span></div>
-      <div class="stat"><b class="goldtx">${pct(t.acc)}</b><span>Accuracy</span></div></div>
-    <div class="stats"><div class="stat"><b style="font-size:15px">${mins(t.tm)}</b><span>Padhai ka samay</span></div><div class="stat"><b>${t.tests.length}</b><span>Test diye</span></div>
-      <div class="stat"><b>${t.doubts}</b><span>Doubt poochhe</span></div></div>
-    <div class="sec">Pichhle 7 din</div><div class="card" style="padding:4px 12px"><table class="mt" style="margin:0"><tr><th>Din</th><th>Sawaal</th><th>Sahi %</th><th>Samay</th><th>Test</th></tr>` +
-    R.week.map(d => `<tr><td>${niceDay(d.d)}</td><td><b>${d.n}</b></td><td>${pct(d.acc)}</td><td>${d.tm ? mins(d.tm) : '—'}</td><td>${d.tests.length || '—'}</td></tr>`).join('') +
-    `</table></div>
-    <div class="sec">Ab tak kul</div><div class="card" style="padding:2px 14px">
-      ${row('Alag-alag sawaal kiye', R.sm.seen + ' / ' + R.sm.total)}${row('Accuracy (sab koshishen)', pct(R.sm.acc))}
-      ${row('Padhai ka kul samay', mins(R.totTime))}${row('Streak', '🔥 ' + R.streak + ' din')}
-      ${row('Revision ke points tick kiye', R.ptsRev + ' / ' + R.pts)}${row('Galtiyan jo abhi sudharni hain', R.mk)}
-      ${row('Test diye', R.hist.length + (R.hist.length ? ' · best ' + Math.max.apply(null, R.hist.map(x => Math.round(x.score / Math.max(1, x.max) * 100))) + '%' : ''))}</div>
-    <div class="sec">Chapter-wise</div>` +
-    R.chs.map(x => `<div class="tile" style="cursor:default"><div class="ic">${subjOf(x.c.subj).ic}</div><div class="g1"><div class="n">${esc(x.c.title)}</div>
-      <div class="s">${x.sm.seen}/${x.sm.total} sawaal · accuracy ${pct(x.sm.acc)} · ${x.rev}/${(x.c.points || []).length} points revise</div>
-      <div class="bar"><i style="width:${x.sm.total ? x.sm.seen / x.sm.total * 100 : 0}%"></i></div></div></div>`).join('');
-  if (R.weak.length) h += `<div class="sec">Yahan mehnat chahiye</div><div class="card" style="padding:4px 14px">` +
-    R.weak.map(w => `<div class="pt-row"><div class="t" style="font-size:13.5px">${w.p.t}<div class="muted" style="margin-top:3px">${esc(w.c.title)} · <span style="color:var(--bad)">${pct(w.acc)}</span></div></div></div>`).join('') + '</div>';
-  if (R.hist.length) h += `<div class="sec">Haal ke test</div>` + R.hist.slice(-5).reverse().map(x =>
-    `<div class="tile" style="cursor:default"><div class="ic mont" style="font-size:13px;font-weight:800">${Math.round(x.score / Math.max(1, x.max) * 100)}%</div><div class="g1"><div class="n">${esc(x.title)}</div>
-    <div class="s">${x.date} · ${x.score}/${x.max} · ✓${x.c} ✗${x.w} –${x.u} · ${fmtTime(x.dur)}</div></div></div>`).join('');
-  h += `<button class="btn gh sm" style="margin-top:14px" onclick="if(confirm('PIN badalna hai?')){save('neet_ppin','');state.parentOk=false;go('pin')}">🔒 PIN badlo</button>`;
-  return h;
-};
 /* ================= sessions (practice / test / review) ================= */
 /* RUN = {mode, title, items:[gid], i, ans:[idx|null], rev:[bool], done:[bool](practice), tq:[sec], start, end, ret} */
 function newRun(items, title, mode) {
@@ -1073,7 +981,7 @@ function submitTest(auto) {
   RUN.finished = Date.now();
   const sc = scoreOf(RUN), d = new Date();
   const hist = load('neet_hist', []);
-  hist.push({ day: todayKey(), title: RUN.title, date: d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(), score: sc.score, max: sc.max,
+  hist.push({ title: RUN.title, date: d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(), score: sc.score, max: sc.max,
     c: sc.c, w: sc.w, u: sc.u, dur: Math.round((Math.min(RUN.finished, RUN.end) - RUN.start) / 1000) });
   save('neet_hist', hist.slice(-100));
   localStorage.removeItem('neet_run');
