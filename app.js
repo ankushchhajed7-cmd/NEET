@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.7';
+const APP_VER = 'v1.8';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -57,6 +57,7 @@ function recordAnswer(g, ok) {
   const s = qstats(); const r = s[g] || [0, 0, 0];
   r[0]++; if (ok) r[1]++; r[2] = ok ? 1 : 0; s[g] = r; save('neet_qs', s);
   bumpDay();
+  if (ok) { const dc = load('neet_dayc', {}), t = todayKey(); dc[t] = (dc[t] || 0) + 1; save('neet_dayc', dc); }
 }
 function dkey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
 function todayKey() { return dkey(new Date()); }
@@ -490,7 +491,9 @@ SCREENS.tests = function () {
 /* ---------- Progress ---------- */
 SCREENS.progress = function () {
   const s = qstats(), days = load('neet_days', {});
-  let h = `<div class="topbar"><div class="h1 silvertx">Progress</div></div>`;
+  let h = `<div class="topbar"><div class="h1 silvertx">Progress</div></div>
+    <div class="tile" style="border-color:var(--gold)" onclick="go('report')"><div class="ic">👨‍👩‍👧</div><div class="g1"><div class="n">Parent report</div>
+    <div class="s">Aaj ki padhai, 7 din, chapter-wise · WhatsApp par bhejo</div></div><div class="ch">›</div></div>`;
   // last 14 days activity
   let bars = '', mx = 1; const arr = [];
   for (let i = 13; i >= 0; i--) { const d = new Date(Date.now() - i * 86400000); const n = days[dkey(d)] || 0; arr.push([d, n]); mx = Math.max(mx, n); }
@@ -528,7 +531,9 @@ SCREENS.more = function () {
       <div class="muted" style="margin-top:4px;line-height:1.5">${deferredInstall ? 'Ek tap — app home screen par aa jayega.' : 'Chrome: ⋮ menu → "Add to Home screen" / "Install app".<br>iPhone Safari: Share ⬆️ → "Add to Home Screen".'}</div>
       ${deferredInstall ? '<button class="btn" style="margin-top:10px" onclick="doInstall()">Install NEET</button>' : ''}</div>`;
   }
-  h += `<div class="tile" onclick="go('about')"><div class="ic">ℹ️</div><div class="g1"><div class="n">NEET exam kaisa hota hai?</div>
+  h += `<div class="tile" onclick="go('report')"><div class="ic">👨‍👩‍👧</div><div class="g1"><div class="n">Parent report</div>
+      <div class="s">Beti ne kitna padha — WhatsApp par bhejo</div></div><div class="ch">›</div></div>
+    <div class="tile" onclick="go('about')"><div class="ic">ℹ️</div><div class="g1"><div class="n">NEET exam kaisa hota hai?</div>
       <div class="s">Pattern, marking, question types, tips</div></div><div class="ch">›</div></div>
     <div class="sec">Naam <span>app isi naam se bulayega</span></div><div class="row"><input class="txt" id="nm" value="${esc(st.name)}" placeholder="Apna naam"><button class="btn sm" style="flex:0 0 90px" onclick="const v=document.getElementById('nm').value.trim();if(v){setSetting('name',v);toast('Naam save ho gaya');say('hello')}">Save</button></div>
     <div class="sec">Awaaz 🔊 <span>sahi / galat bol kar batana</span></div>
@@ -714,6 +719,7 @@ async function askSend(text) {
   if (!q) return;
   if (!askKey()) { alert('Pehle API key daalo.'); return; }
   const msgs = askMsgs(); msgs.push({ role: 'user', text: q }); askSave(msgs);
+  const dd = load('neet_doubts', {}); dd[todayKey()] = (dd[todayKey()] || 0) + 1; save('neet_doubts', dd);
   if (el) el.value = '';
   state.askBusy = true; render(); askScrollEnd();
   try {
@@ -793,6 +799,102 @@ SCREENS.ask = function () {
       <button class="btn" style="width:56px;padding:13px 0" onclick="askSend()" ${state.askBusy ? 'disabled' : ''}>➤</button></div>
     <button class="btn gh sm" style="margin-top:10px" onclick="askForgetKey()">🔑 API key badlo</button>`;
 };
+
+/* ================= Parent report (papa ke liye) ================= */
+/* padhai ka samay: app khula ho aur padhai wali screen par ho to har 15 sec jodo */
+const STUDY_SCREENS = ['run', 'chapter', 'ask', 'result'];
+setInterval(function () {
+  if (document.visibilityState !== 'visible' || STUDY_SCREENS.indexOf(state.screen) < 0) return;
+  const tm = load('neet_time', {}), t = todayKey(); tm[t] = (tm[t] || 0) + 15; save('neet_time', tm);
+}, 15000);
+function mins(sec) { sec = Math.round((sec || 0) / 60); return sec < 60 ? sec + ' min' : Math.floor(sec / 60) + ' ghanta' + (sec % 60 ? ' ' + (sec % 60) + ' min' : ''); }
+function dayStats(d) {
+  const k = dkey(d);
+  const n = load('neet_days', {})[k] || 0, c = load('neet_dayc', {})[k], tm = load('neet_time', {})[k] || 0;
+  const tests = load('neet_hist', []).filter(x => x.day === k), doubts = load('neet_doubts', {})[k] || 0;
+  return { k: k, d: d, n: n, c: c, acc: (c != null && n) ? c / n : null, tm: tm, tests: tests, doubts: doubts };
+}
+function reportData() {
+  const all = allGids(CHS), sm = summary(all), s = qstats();
+  const today = dayStats(new Date()), week = [];
+  for (let i = 0; i < 7; i++) week.push(dayStats(new Date(Date.now() - i * 86400000)));
+  const hist = load('neet_hist', []);
+  const rv = revised(); let pts = 0, ptsRev = 0;
+  CHS.forEach(c => { pts += (c.points || []).length; ptsRev += Object.keys(rv[c.id] || {}).length; });
+  const totTime = Object.values(load('neet_time', {})).reduce((a, b) => a + b, 0);
+  const chs = CHS.map(c => ({ c: c, sm: summary(allGids([c])), rev: Object.keys(rv[c.id] || {}).length }));
+  // kamzor points: kam se kam 2 baar try, sabse kam accuracy
+  const weak = [];
+  CHS.forEach(c => (c.points || []).forEach(p => {
+    let a = 0, k = 0; (c.qs || []).forEach(q => { if ((q.p || []).indexOf(p.id) >= 0) { const r = s[gid(c, q)]; if (r) { a += r[0]; k += r[1]; } } });
+    if (a >= 2 && k / a < 0.6) weak.push({ c: c, p: p, acc: k / a });
+  }));
+  weak.sort((x, y) => x.acc - y.acc);
+  return { sm: sm, today: today, week: week, hist: hist, pts: pts, ptsRev: ptsRev, totTime: totTime, chs: chs, weak: weak.slice(0, 5),
+    mk: mistakes().length, streak: streak() };
+}
+function niceDay(d) { const D = ['Ravi', 'Som', 'Mangal', 'Budh', 'Guru', 'Shukra', 'Shani']; return D[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1); }
+SCREENS.report = function () {
+  const R = reportData(), t = R.today, nm = esc(callName());
+  const row = (a, b) => `<div class="pt-row" style="align-items:center;padding:9px 0"><div class="t" style="color:var(--ink2)">${a}</div><div class="mont" style="font-weight:800;text-align:right">${b}</div></div>`;
+  let h = `<div class="topbar"><button class="link" onclick="go('progress')">‹ Back</button><div class="muted">Parent report</div></div>
+    <div class="h1">👨‍👩‍👧 ${nm} ki padhai</div><div class="muted" style="margin-top:4px">${niceDay(new Date())} · NEET app ${APP_VER}</div>
+    <div class="sec">Aaj</div>
+    <div class="stats"><div class="stat"><b>${t.n}</b><span>Sawaal kiye</span></div><div class="stat"><b style="color:var(--ok)">${t.c == null ? '—' : t.c}</b><span>Sahi</span></div>
+      <div class="stat"><b class="goldtx">${pct(t.acc)}</b><span>Accuracy</span></div></div>
+    <div class="stats"><div class="stat"><b style="font-size:15px">${mins(t.tm)}</b><span>Padhai ka samay</span></div><div class="stat"><b>${t.tests.length}</b><span>Test diye</span></div>
+      <div class="stat"><b>${t.doubts}</b><span>Doubt poochhe</span></div></div>
+    <div class="sec">Pichhle 7 din</div><div class="card" style="padding:4px 12px"><table class="mt" style="margin:0"><tr><th>Din</th><th>Sawaal</th><th>Sahi %</th><th>Samay</th><th>Test</th></tr>` +
+    R.week.map(d => `<tr><td>${niceDay(d.d)}</td><td><b>${d.n}</b></td><td>${pct(d.acc)}</td><td>${d.tm ? mins(d.tm) : '—'}</td><td>${d.tests.length || '—'}</td></tr>`).join('') +
+    `</table></div>
+    <div class="sec">Ab tak kul</div><div class="card" style="padding:2px 14px">
+      ${row('Alag-alag sawaal kiye', R.sm.seen + ' / ' + R.sm.total)}${row('Accuracy (sab koshishen)', pct(R.sm.acc))}
+      ${row('Padhai ka kul samay', mins(R.totTime))}${row('Streak', '🔥 ' + R.streak + ' din')}
+      ${row('Revision ke points tick kiye', R.ptsRev + ' / ' + R.pts)}${row('Galtiyan jo abhi sudharni hain', R.mk)}
+      ${row('Test diye', R.hist.length + (R.hist.length ? ' · best ' + Math.max.apply(null, R.hist.map(x => Math.round(x.score / Math.max(1, x.max) * 100))) + '%' : ''))}</div>
+    <div class="sec">Chapter-wise</div>` +
+    R.chs.map(x => `<div class="tile" style="cursor:default"><div class="ic">${subjOf(x.c.subj).ic}</div><div class="g1"><div class="n">${esc(x.c.title)}</div>
+      <div class="s">${x.sm.seen}/${x.sm.total} sawaal · accuracy ${pct(x.sm.acc)} · ${x.rev}/${(x.c.points || []).length} points revise</div>
+      <div class="bar"><i style="width:${x.sm.total ? x.sm.seen / x.sm.total * 100 : 0}%"></i></div></div></div>`).join('');
+  if (R.weak.length) h += `<div class="sec">Yahan mehnat chahiye</div><div class="card" style="padding:4px 14px">` +
+    R.weak.map(w => `<div class="pt-row"><div class="t" style="font-size:13.5px">${w.p.t}<div class="muted" style="margin-top:3px">${esc(w.c.title)} · <span style="color:var(--bad)">${pct(w.acc)}</span></div></div></div>`).join('') + '</div>';
+  if (R.hist.length) h += `<div class="sec">Haal ke test</div>` + R.hist.slice(-5).reverse().map(x =>
+    `<div class="tile" style="cursor:default"><div class="ic mont" style="font-size:13px;font-weight:800">${Math.round(x.score / Math.max(1, x.max) * 100)}%</div><div class="g1"><div class="n">${esc(x.title)}</div>
+    <div class="s">${x.date} · ${x.score}/${x.max} · ✓${x.c} ✗${x.w} –${x.u} · ${fmtTime(x.dur)}</div></div></div>`).join('');
+  const ph = load('neet_parent', '');
+  h += `<div class="sec">WhatsApp par report</div>
+    <div class="row"><input class="txt" id="pph" inputmode="tel" value="${esc(ph)}" placeholder="Papa ka WhatsApp number (10 digit)">
+    <button class="btn gh sm" style="flex:0 0 80px" onclick="saveParent()">Save</button></div>
+    <button class="btn" style="margin-top:9px;background:#25D366;color:#fff;box-shadow:none" onclick="sendReport()">📤 WhatsApp par report bhejo</button>
+    <div class="muted" style="margin-top:8px;line-height:1.5">Number save ho to report seedha usi number par jayegi. Roz raat ko ek baar bhejne ki aadat banwa dijiye 🙂</div>`;
+  return h;
+};
+function saveParent() {
+  const v = (document.getElementById('pph').value || '').replace(/\D/g, '');
+  if (v && v.length < 10) { alert('Poora 10 digit number likho.'); return; }
+  save('neet_parent', v); toast(v ? 'Number save ho gaya' : 'Number hata diya');
+}
+function reportText() {
+  const R = reportData(), t = R.today, L = [];
+  L.push('📊 *' + callName() + ' — NEET padhai report*', niceDay(new Date()), '');
+  L.push('*Aaj:*', '• Sawaal: ' + t.n + (t.c != null ? ' (sahi ' + t.c + ', accuracy ' + pct(t.acc) + ')' : ''),
+    '• Padhai ka samay: ' + mins(t.tm), '• Test: ' + (t.tests.length ? t.tests.map(x => x.title + ' ' + x.score + '/' + x.max).join(', ') : 'koi nahi'),
+    '• Doubt poochhe: ' + t.doubts, '');
+  L.push('*Pichhle 7 din:*');
+  R.week.forEach(d => L.push('• ' + niceDay(d.d) + ': ' + d.n + ' sawaal' + (d.acc != null ? ', ' + pct(d.acc) + ' sahi' : '') + (d.tm ? ', ' + mins(d.tm) : '')));
+  L.push('', '*Ab tak:*', '• Sawaal kiye: ' + R.sm.seen + '/' + R.sm.total + ' · accuracy ' + pct(R.sm.acc),
+    '• Kul padhai: ' + mins(R.totTime) + ' · streak ' + R.streak + ' din', '• Revision points: ' + R.ptsRev + '/' + R.pts + ' · galtiyan baaki: ' + R.mk,
+    '• Test diye: ' + R.hist.length);
+  if (R.weak.length) { L.push('', '*Kamzor topics:*'); R.weak.slice(0, 3).forEach(w => L.push('• ' + plain(w.p.t).slice(0, 90) + '… (' + pct(w.acc) + ')')); }
+  return L.join('\n');
+}
+function sendReport() {
+  const el = document.getElementById('pph'); if (el && el.value.replace(/\D/g, '') !== load('neet_parent', '')) saveParent();
+  let ph = load('neet_parent', ''); if (ph.length === 10) ph = '91' + ph;
+  const url = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(reportText());
+  // APK (apk-factory) wa.me ko seedha WhatsApp mein kholta hai
+  if (window.ANVAlert || /\bwv\b/.test(navigator.userAgent)) location.href = url; else window.open(url, '_blank');
+}
 
 /* ================= sessions (practice / test / review) ================= */
 /* RUN = {mode, title, items:[gid], i, ans:[idx|null], rev:[bool], done:[bool](practice), tq:[sec], start, end, ret} */
@@ -978,7 +1080,7 @@ function submitTest(auto) {
   RUN.finished = Date.now();
   const sc = scoreOf(RUN), d = new Date();
   const hist = load('neet_hist', []);
-  hist.push({ title: RUN.title, date: d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(), score: sc.score, max: sc.max,
+  hist.push({ day: todayKey(), title: RUN.title, date: d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear(), score: sc.score, max: sc.max,
     c: sc.c, w: sc.w, u: sc.u, dur: Math.round((Math.min(RUN.finished, RUN.end) - RUN.start) / 1000) });
   save('neet_hist', hist.slice(-100));
   localStorage.removeItem('neet_run');
