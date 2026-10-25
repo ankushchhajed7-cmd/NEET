@@ -29,7 +29,7 @@ GitHub Pages par host karo (Settings → Pages → branch `main`, folder `/`). P
    - `subj`: `phy` | `chem` | `bot` | `zoo`
    - `points`: `{ id: 'p1', topic: 'Section', t: 'book ki line / fact' }`
 2. `data/<subj>/<cls>-<no>-q1.js` … — `addQs('<chapter id>', [ ...questions ])`
-3. Dono files ka `<script>` `index.html` mein aur path `sw.js` ki `FILES` list mein jodo; `sw.js` ka `CACHE` version badhao.
+3. Dono files ka path `index.html` ki file list (loader) mein aur `sw.js` ki `FILES` list mein jodo; `sw.js` ka `CACHE` aur `app.js` ka `APP_VER` badhao.
 4. `node tools/check-coverage.js --min 2` — har point covered, ids, answers, options sab check.
 
 ### Question format

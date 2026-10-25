@@ -213,14 +213,21 @@
   <div class="splash"><img src="icons/icon-512.png" alt="NEET"></div>
 </div>
 
-<!-- Data: naya chapter add karo to uski script yahan (aur sw.js ki list mein) jodo -->
-<script src="data/subjects.js"></script>
-<script src="data/bot/12-01-points.js"></script>
-<script src="data/bot/12-01-q1.js"></script>
-<script src="data/bot/12-01-q2.js"></script>
-<script src="data/bot/12-01-q3.js"></script>
-<script src="data/bot/12-01-q4.js"></script>
-
-<script src="app.js"></script>
+<!-- Data: naya chapter add karo to uski file yahan list mein (aur sw.js ki FILES mein) jodo.
+     Refresh dabane par neet_bust badalta hai -> har file naye ?v= URL se taaza aati hai. -->
+<script>
+(function () {
+  var v = ''; try { v = localStorage.getItem('neet_bust') || ''; } catch (e) {}
+  [
+    'data/subjects.js',
+    'data/bot/12-01-points.js',
+    'data/bot/12-01-q1.js',
+    'data/bot/12-01-q2.js',
+    'data/bot/12-01-q3.js',
+    'data/bot/12-01-q4.js',
+    'app.js'
+  ].forEach(function (f) { document.write('<script src="' + f + (v ? '?v=' + v : '') + '"><\/script>'); });
+})();
+</script>
 </body>
 </html>
