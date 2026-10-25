@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.8';
+const APP_VER = 'v1.9';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -300,7 +300,7 @@ let RUN = null;        // current practice/test/review session
 let TICK = null;
 let deferredInstall = null;
 
-function go(s) { shutup(); state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
+function go(s) { shutup(); if (s !== 'report') state.parentOk = false; state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
@@ -363,7 +363,7 @@ SCREENS.home = function () {
   const hr = new Date().getHours();
   const hello = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
   let h = `<div class="topbar"><div class="brand"><img src="icons/icon-192.png" alt="">
-    <div><div class="t silvertx">NEET <span class="tag g" style="font-family:Inter,sans-serif;font-size:10.5px;letter-spacing:0;vertical-align:4px">${APP_VER}</span></div>
+    <div><div class="t silvertx">NEET <span class="tag g" style="font-family:Inter,sans-serif;font-size:10.5px;letter-spacing:0;vertical-align:4px;cursor:default" onclick="verTap()">${APP_VER}</span></div>
     <div class="st">${hello}${st.name ? ', ' + esc(st.name) : ''} ✨</div></div></div>
     <div style="display:flex;gap:8px"><button class="iconbtn" title="Refresh — naya version laao" onclick="appRefresh()">🔄</button>
     <button class="iconbtn" onclick="setSetting('theme', settings().theme==='dark'?'light':'dark')">${st.theme === 'dark' ? '☀️' : '🌙'}</button></div></div>`;
@@ -491,9 +491,7 @@ SCREENS.tests = function () {
 /* ---------- Progress ---------- */
 SCREENS.progress = function () {
   const s = qstats(), days = load('neet_days', {});
-  let h = `<div class="topbar"><div class="h1 silvertx">Progress</div></div>
-    <div class="tile" style="border-color:var(--gold)" onclick="go('report')"><div class="ic">👨‍👩‍👧</div><div class="g1"><div class="n">Parent report</div>
-    <div class="s">Aaj ki padhai, 7 din, chapter-wise · WhatsApp par bhejo</div></div><div class="ch">›</div></div>`;
+  let h = `<div class="topbar"><div class="h1 silvertx">Progress</div></div>`;
   // last 14 days activity
   let bars = '', mx = 1; const arr = [];
   for (let i = 13; i >= 0; i--) { const d = new Date(Date.now() - i * 86400000); const n = days[dkey(d)] || 0; arr.push([d, n]); mx = Math.max(mx, n); }
@@ -531,9 +529,7 @@ SCREENS.more = function () {
       <div class="muted" style="margin-top:4px;line-height:1.5">${deferredInstall ? 'Ek tap — app home screen par aa jayega.' : 'Chrome: ⋮ menu → "Add to Home screen" / "Install app".<br>iPhone Safari: Share ⬆️ → "Add to Home Screen".'}</div>
       ${deferredInstall ? '<button class="btn" style="margin-top:10px" onclick="doInstall()">Install NEET</button>' : ''}</div>`;
   }
-  h += `<div class="tile" onclick="go('report')"><div class="ic">👨‍👩‍👧</div><div class="g1"><div class="n">Parent report</div>
-      <div class="s">Beti ne kitna padha — WhatsApp par bhejo</div></div><div class="ch">›</div></div>
-    <div class="tile" onclick="go('about')"><div class="ic">ℹ️</div><div class="g1"><div class="n">NEET exam kaisa hota hai?</div>
+  h += `<div class="tile" onclick="go('about')"><div class="ic">ℹ️</div><div class="g1"><div class="n">NEET exam kaisa hota hai?</div>
       <div class="s">Pattern, marking, question types, tips</div></div><div class="ch">›</div></div>
     <div class="sec">Naam <span>app isi naam se bulayega</span></div><div class="row"><input class="txt" id="nm" value="${esc(st.name)}" placeholder="Apna naam"><button class="btn sm" style="flex:0 0 90px" onclick="const v=document.getElementById('nm').value.trim();if(v){setSetting('name',v);toast('Naam save ho gaya');say('hello')}">Save</button></div>
     <div class="sec">Awaaz 🔊 <span>sahi / galat bol kar batana</span></div>
@@ -834,10 +830,39 @@ function reportData() {
     mk: mistakes().length, streak: streak() };
 }
 function niceDay(d) { const D = ['Ravi', 'Som', 'Mangal', 'Budh', 'Guru', 'Shukra', 'Shani']; return D[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth() + 1); }
+/* Report chhupi hai: Home par version badge 5 baar tap -> PIN -> report. Kahin aur link nahi. */
+let VER_TAPS = 0, VER_T0 = 0;
+function verTap() {
+  const now = Date.now(); if (now - VER_T0 > 3000) VER_TAPS = 0;
+  if (!VER_TAPS) VER_T0 = now; VER_TAPS++;
+  if (VER_TAPS >= 5) { VER_TAPS = 0; state.pinErr = ''; go('pin'); }
+}
+SCREENS.pin = function () {
+  const has = !!load('neet_ppin', '');
+  return `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div></div></div>
+    <div style="text-align:center;margin-top:40px"><div style="font-size:40px">🔒</div>
+    <div class="mont" style="font-weight:800;font-size:18px;margin:8px 0 4px">${has ? 'PIN daalo' : 'Naya 4-digit PIN banao'}</div>
+    <div class="muted">${has ? '' : 'Ye PIN yaad rakhna — isi se ye hissa khulega'}</div></div>
+    <div class="card" style="margin-top:16px"><input class="txt" id="pin1" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;font-size:24px;letter-spacing:.5em" onkeydown="if(event.key==='Enter')pinGo()">
+    ${has ? '' : '<input class="txt" id="pin2" type="password" inputmode="numeric" maxlength="4" placeholder="Dobara" style="text-align:center;font-size:24px;letter-spacing:.5em;margin-top:8px">'}
+    <div style="color:var(--bad);font-weight:700;font-size:13px;text-align:center;min-height:18px;margin-top:6px">${state.pinErr || ''}</div>
+    <button class="btn" onclick="pinGo()">Kholo</button></div>`;
+};
+function pinGo() {
+  const a = (document.getElementById('pin1').value || '').trim(), saved = load('neet_ppin', '');
+  if (!/^\d{4}$/.test(a)) { state.pinErr = '4 ank ka PIN likho'; return render(); }
+  if (!saved) {
+    const b = (document.getElementById('pin2').value || '').trim();
+    if (a !== b) { state.pinErr = 'Dono PIN alag hain'; return render(); }
+    save('neet_ppin', a);
+  } else if (a !== saved) { state.pinErr = 'Galat PIN'; return render(); }
+  state.parentOk = true; go('report');
+}
 SCREENS.report = function () {
+  if (!state.parentOk) return SCREENS.home();
   const R = reportData(), t = R.today, nm = esc(callName());
   const row = (a, b) => `<div class="pt-row" style="align-items:center;padding:9px 0"><div class="t" style="color:var(--ink2)">${a}</div><div class="mont" style="font-weight:800;text-align:right">${b}</div></div>`;
-  let h = `<div class="topbar"><button class="link" onclick="go('progress')">‹ Back</button><div class="muted">Parent report</div></div>
+  let h = `<div class="topbar"><button class="link" onclick="state.parentOk=false;go('home')">‹ Back</button><div class="muted">Report</div></div>
     <div class="h1">👨‍👩‍👧 ${nm} ki padhai</div><div class="muted" style="margin-top:4px">${niceDay(new Date())} · NEET app ${APP_VER}</div>
     <div class="sec">Aaj</div>
     <div class="stats"><div class="stat"><b>${t.n}</b><span>Sawaal kiye</span></div><div class="stat"><b style="color:var(--ok)">${t.c == null ? '—' : t.c}</b><span>Sahi</span></div>
@@ -866,7 +891,8 @@ SCREENS.report = function () {
     <div class="row"><input class="txt" id="pph" inputmode="tel" value="${esc(ph)}" placeholder="Papa ka WhatsApp number (10 digit)">
     <button class="btn gh sm" style="flex:0 0 80px" onclick="saveParent()">Save</button></div>
     <button class="btn" style="margin-top:9px;background:#25D366;color:#fff;box-shadow:none" onclick="sendReport()">📤 WhatsApp par report bhejo</button>
-    <div class="muted" style="margin-top:8px;line-height:1.5">Number save ho to report seedha usi number par jayegi. Roz raat ko ek baar bhejne ki aadat banwa dijiye 🙂</div>`;
+    <div class="muted" style="margin-top:8px;line-height:1.5">Number save ho to report seedha usi number par jayegi. Bhejne ke baad is phone ki WhatsApp chat se message "Delete for me" kar sakte ho.</div>
+    <button class="btn gh sm" style="margin-top:14px" onclick="if(confirm('PIN badalna hai?')){save('neet_ppin','');state.parentOk=false;go('pin')}">🔒 PIN badlo</button>`;
   return h;
 };
 function saveParent() {
