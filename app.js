@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.4';
+const APP_VER = 'v1.5';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -36,7 +36,9 @@ function chaptersOf(sid) { return CHS.filter(c => c.subj === sid); }
 function allGids(chs) { const out = []; chs.forEach(c => (c.qs || []).forEach(q => out.push(gid(c, q)))); return out; }
 
 /* ================= settings / stats ================= */
-function settings() { return Object.assign({ theme: 'light', lang: 'en', name: '', goal: 50, voice: true, vlang: 'hi', vspeed: 'normal', vexpl: false }, load('neet_set', {})); }
+/* naam na badla ho to default 'Yukti' — More → Naam se koi bhi badal sakta hai */
+const DEFAULT_NAME = 'Yukti';
+function settings() { const s = Object.assign({ theme: 'light', lang: 'en', name: DEFAULT_NAME, goal: 50, voice: true, vlang: 'hi', vspeed: 'normal', vexpl: false }, load('neet_set', {})); if (!String(s.name || '').trim()) s.name = DEFAULT_NAME; return s; }
 function setSetting(k, v) { const s = settings(); s[k] = v; save('neet_set', s); applyTheme(); render(); }
 (function () {
   // ek baar: default ab Silver (ShopSathi) theme
