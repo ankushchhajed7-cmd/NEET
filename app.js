@@ -616,7 +616,9 @@ function importData(f) {
 }
 function resetAll() {
   if (!confirm('Saari progress, galtiyan, bookmarks aur test history mit jayegi. Pakka?')) return;
-  Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && k !== 'neet_set').forEach(k => localStorage.removeItem(k));
+  // naam/settings aur Gemini key bachi rahe
+  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13'];
+  Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && keep.indexOf(k) < 0).forEach(k => localStorage.removeItem(k));
   go('home');
 }
 
@@ -643,12 +645,11 @@ function askSave(m) { save('neet_chat', m.slice(-40)); }
 function askKey() { return load('neet_key', '') || load('padhai_key', ''); }   // PADHAI wali key bhi chalegi (same site)
 function openAsk(fromRun) { state.askBack = fromRun ? 'run' : 'home'; state.askBusy = false; go('ask'); }
 function askSetKey() {
-  state.askBadKey = false;
   const el = document.getElementById('askKeyInput'), k = el ? el.value.trim() : '';
   if (!k) { alert('Pehle API key paste karo.'); return; }
   save('neet_key', k); save('neet_model', ''); render();
 }
-function askForgetKey() { if (!confirm('API key hata dein?')) return; save('neet_key', ''); save('padhai_key', ''); render(); }
+function askForgetKey() { if (!confirm('Kya sach mein purani API key hata kar nayi daalni hai?')) return; save('neet_key', ''); save('padhai_key', ''); render(); }
 function askClear() { if (!confirm('Poori baat-cheet mita dein?')) return; askSave([]); render(); }
 function askChip(t) { const el = document.getElementById('askInput'); if (el) { el.value = t; askSend(); } }
 function askScrollEnd() { const b = document.getElementById('askBox'); if (b) b.scrollTop = b.scrollHeight + 9999; }
@@ -721,11 +722,14 @@ async function askSend(text) {
     const m2 = askMsgs(); m2.push({ role: 'ai', text: ans.replace(/\*\*/g, '').replace(/^#+\s*/gm, '') }); askSave(m2);
   } catch (e) {
     const msg = String(e.message || '');
-    if (/API[_ ]?key not valid|API_KEY_INVALID|api key expired|invalid api key/i.test(msg)) {
-      save('neet_key', ''); save('padhai_key', ''); save('neet_model', '');
-      state.askBusy = false; state.askBadKey = true; render(); return;
-    }
-    const m2 = askMsgs(); m2.push({ role: 'ai', text: 'Abhi jawab nahi mil paaya 😔\nInternet check karke phir se try karo.\n\n(' + (msg || 'network problem') + ')' }); askSave(m2);
+    // key kabhi apne aap nahi hatti — sirf "API key badlo" se. Yahan bas saaf bata do.
+    const bad = /API[_ ]?key not valid|API_KEY_INVALID|api key expired|invalid api key/i.test(msg);
+    save('neet_model', '');
+    const m2 = askMsgs();
+    m2.push({ role: 'ai', text: bad
+      ? 'Google keh raha hai ki ye API key kaam nahi kar rahi 🔑\nKey save hai, hatayi nahi gayi. Agar baar-baar aaye to neeche "API key badlo" se nayi key daalo.\n\n(' + msg + ')'
+      : 'Abhi jawab nahi mil paaya 😔\nInternet check karke phir se try karo.\n\n(' + (msg || 'network problem') + ')' });
+    askSave(m2);
   }
   state.askBusy = false; render(); askScrollEnd();
 }
@@ -760,7 +764,6 @@ SCREENS.ask = function () {
     return `<div class="topbar">${back}<div class="muted">Doubt poocho</div></div>
       <div class="card"><div style="text-align:center;font-size:40px">🧑‍🏫🔑</div>
       <div class="h1" style="text-align:center;font-size:20px;margin:6px 0 10px">Ek baar setup karna hai</div>
-      ${state.askBadKey ? '<div class="expl" style="border-left-color:var(--bad);color:var(--bad);margin-bottom:12px">Purani API key kaam nahi kar rahi thi, isliye hata di. Nayi key daalo.</div>' : ''}
       <div style="font-size:14.5px;line-height:1.7;color:var(--ink2)">Doubt solve karne ke liye ek <b>free Google Gemini API key</b> chahiye:<br>
       <b>1.</b> Chrome mein kholo: <b style="color:var(--gold)">aistudio.google.com/apikey</b><br><b>2.</b> Google account se login karo<br>
       <b>3.</b> "Create API key" dabao<br><b>4.</b> Key copy karke neeche paste karo</div>
