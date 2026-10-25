@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.5';
+const APP_VER = 'v1.6';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -386,7 +386,9 @@ SCREENS.home = function () {
     <div class="qa gold" onclick="startMixed(null,20)"><div class="e">⚡</div><div class="n">Quick 20</div><div class="s">Sab chapters se mix</div></div>
     <div class="qa" onclick="go('tests')"><div class="e">🏆</div><div class="n">NEET Mock</div><div class="s">180 Q · 180 min</div></div>
     <div class="qa" onclick="startList(mistakes(),'Galtiyan sudharo','practice')"><div class="e">🎯</div><div class="n">Mistakes</div><div class="s">${mk} questions</div></div>
-    <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>`;
+    <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>
+    <div class="tile" style="margin-top:9px;border-color:var(--gold)" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
+      <div class="s">Koi bhi sawaal — NCERT ke hisaab se samjhaya jayega</div></div><div class="ch">›</div></div>`;
 
   h += `<div class="sec">Subjects</div>` + SUBJ.map(subjTile).join('');
   if (!CHS.length || CHS.every(c => c.demo)) {
@@ -618,6 +620,180 @@ function resetAll() {
   go('home');
 }
 
+/* ================= Doubt poocho (AI doubt solver — PADHAI jaisa, Google Gemini) =================
+   Key sirf is phone (localStorage) mein rehti hai; request seedha Google ko jaati hai. */
+const ASK_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash'];
+function askSys() {
+  return [
+    "Tum ek anubhavi, pyaar se samjhane wale NEET (UG) teacher ho. Student ka naam: " + callName() + ". Wo NEET ki tayyari kar rahi hai.",
+    "NIYAM:",
+    "1. Jawab SIMPLE HINGLISH mein do (Roman script), par scientific terms English mein hi rakho (jaise 'tapetum', 'double fertilisation'). Agar student English mein poochhe to English mein jawab do.",
+    "2. Hamesha NCERT (Class 11-12) ke hisaab se sahi aur exact jawab do. NCERT ki line ya fact ho to wahi batao. Galat ya andaaze wali baat mat likho; pakka na ho to saaf bolo.",
+    "3. Jawab 5-12 line ka rakho: pehle seedha jawab, phir chhota sa kaaran/samjhaav, phir NEET ke liye 1 yaad rakhne wala point ('NEET tip:').",
+    "4. MCQ samjhana ho to batao sahi option kyun sahi hai aur baaki options kyun galat hain.",
+    "5. Physics/Chemistry ke numerical STEP BY STEP hal karo, formula aur unit ke saath, phir final answer.",
+    "6. Yaad rakhne ki trick ya mnemonic ho to do.",
+    "7. Hausla badhao, kabhi-kabhi naam lekar baat karo. Emoji bahut kam.",
+    "8. Padhai se hatkar ya galat kaam wale sawaal ho to pyaar se mana karo aur NEET ki taraf mod do. Dawai/ilaaj ki personal salah mat do.",
+    "9. Formatting: markdown ke ** * # jaise chinh mat use karo, seedha saaf text likho; list ke liye 1. 2. 3. use karo."
+  ].join('\n');
+}
+function askMsgs() { return load('neet_chat', []); }
+function askSave(m) { save('neet_chat', m.slice(-40)); }
+function askKey() { return load('neet_key', '') || load('padhai_key', ''); }   // PADHAI wali key bhi chalegi (same site)
+function openAsk(fromRun) { state.askBack = fromRun ? 'run' : 'home'; state.askBusy = false; go('ask'); }
+function askSetKey() {
+  state.askBadKey = false;
+  const el = document.getElementById('askKeyInput'), k = el ? el.value.trim() : '';
+  if (!k) { alert('Pehle API key paste karo.'); return; }
+  save('neet_key', k); save('neet_model', ''); render();
+}
+function askForgetKey() { if (!confirm('API key hata dein?')) return; save('neet_key', ''); save('padhai_key', ''); render(); }
+function askClear() { if (!confirm('Poori baat-cheet mita dein?')) return; askSave([]); render(); }
+function askChip(t) { const el = document.getElementById('askInput'); if (el) { el.value = t; askSend(); } }
+function askScrollEnd() { const b = document.getElementById('askBox'); if (b) b.scrollTop = b.scrollHeight + 9999; }
+
+/* Google se poochho ki is key se kaunse model chalte hain */
+async function askDiscover(key) {
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=' + encodeURIComponent(key));
+    const j = await r.json(); if (!j || !j.models) return null;
+    const names = j.models.filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0)
+      .map(m => String(m.name || '').replace(/^models\//, ''))
+      .filter(nm => nm && !/embedding|aqa|imagen|veo|tts|image|audio|live|thinking/i.test(nm));
+    if (!names.length) return null;
+    const score = nm => (/flash/i.test(nm) ? 100 : 0) + (/2\.5/.test(nm) ? 50 : /2\.0/.test(nm) ? 40 : /1\.5/.test(nm) ? 15 : 0)
+      + (/lite/i.test(nm) ? 8 : 0) + (/latest/i.test(nm) ? 4 : 0) - (/pro/i.test(nm) ? 25 : 0) - (/preview|exp/i.test(nm) ? 35 : 0);
+    names.sort((a, b) => score(b) - score(a));
+    return names.slice(0, 6);
+  } catch (e) { return null; }
+}
+function askBody(model, history, noThink) {
+  const contents = history.slice(-10).map(m => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] }));
+  const gen = { temperature: 0.4, maxOutputTokens: 2048 };
+  // 2.5 model "thinking" mein budget kha jaate hain aur jawab beech mein kat jaata hai
+  if (!noThink && /2\.5/.test(model)) gen.thinkingConfig = { thinkingBudget: 0 };
+  return { contents: contents, systemInstruction: { parts: [{ text: askSys() }] }, generationConfig: gen };
+}
+async function askOnce(model, history, key, noThink) {
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(key),
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(askBody(model, history, noThink)) });
+  const j = await r.json();
+  if (!r.ok) return { err: (j && j.error && j.error.message) ? j.error.message : ('HTTP ' + r.status), badArg: r.status === 400 };
+  const c = j.candidates && j.candidates[0];
+  const txt = (c && c.content && c.content.parts) ? c.content.parts.map(p => p.text || '').join('') : '';
+  if (!txt) return { err: (c && c.finishReason) ? ('Jawab adhoora aaya (' + c.finishReason + ')') : 'Khaali jawab aaya' };
+  return { txt: txt.trim() };
+}
+async function askTry(model, history, key) {
+  let out = await askOnce(model, history, key, false);
+  if (out.err && out.badArg) out = await askOnce(model, history, key, true);   // purane model thinkingConfig nahi maante
+  return out;
+}
+async function askCall(history) {
+  const key = askKey(); let lastErr = '';
+  const saved = load('neet_model', '');
+  if (saved) {
+    try { const out = await askTry(saved, history, key); if (out.txt) return out.txt; lastErr = out.err || ''; } catch (e) { lastErr = e.message || 'Network problem'; }
+    save('neet_model', '');
+  }
+  const list = [];
+  const found = await askDiscover(key);
+  if (found) found.forEach(m => { if (list.indexOf(m) < 0) list.push(m); });
+  ASK_MODELS.forEach(m => { if (list.indexOf(m) < 0 && m !== saved) list.push(m); });
+  for (let i = 0; i < list.length; i++) {
+    try { const out = await askTry(list[i], history, key); if (out.txt) { save('neet_model', list[i]); return out.txt; } lastErr = out.err || 'Jawab nahi mila'; }
+    catch (e) { lastErr = e.message || 'Network problem'; }
+  }
+  throw new Error(lastErr || 'Jawab nahi mila');
+}
+async function askSend(text) {
+  if (state.askBusy) return;
+  const el = document.getElementById('askInput');
+  const q = (text || (el ? el.value : '')).trim();
+  if (!q) return;
+  if (!askKey()) { alert('Pehle API key daalo.'); return; }
+  const msgs = askMsgs(); msgs.push({ role: 'user', text: q }); askSave(msgs);
+  if (el) el.value = '';
+  state.askBusy = true; render(); askScrollEnd();
+  try {
+    const ans = await askCall(msgs);
+    const m2 = askMsgs(); m2.push({ role: 'ai', text: ans.replace(/\*\*/g, '').replace(/^#+\s*/gm, '') }); askSave(m2);
+  } catch (e) {
+    const msg = String(e.message || '');
+    if (/API[_ ]?key not valid|API_KEY_INVALID|api key expired|invalid api key/i.test(msg)) {
+      save('neet_key', ''); save('padhai_key', ''); save('neet_model', '');
+      state.askBusy = false; state.askBadKey = true; render(); return;
+    }
+    const m2 = askMsgs(); m2.push({ role: 'ai', text: 'Abhi jawab nahi mil paaya 😔\nInternet check karke phir se try karo.\n\n(' + (msg || 'network problem') + ')' }); askSave(m2);
+  }
+  state.askBusy = false; render(); askScrollEnd();
+}
+function askSpeak(i) { const m = askMsgs(); if (m[i]) speak(m[i].text.replace(/[*#`]/g, ''), 'hi'); }
+
+/* practice/review ke sawaal par seedha doubt — sawaal, options, sahi aur apna jawab saath jaata hai */
+function askAboutQ() {
+  if (!RUN) return;
+  const i = RUN.i, q = QIDX[RUN.items[i]].q, c = QIDX[RUN.items[i]].c, sel = RUN.ans[i], v = V(q);
+  const opts = optsOf(q).map((o, k) => '(' + (k + 1) + ') ' + plain(o)).join('\n');
+  const t = 'Is NEET sawaal mein doubt hai (' + c.title + '):\n\n' + plain(qHTML(q)) + '\n' + opts +
+    '\n\nSahi jawab: (' + (q.a + 1) + ')' + (sel == null ? '' : '\nMera jawab: (' + (sel + 1) + ')') +
+    '\nBook explanation: ' + plain(v.e) + '\n\nIse achhe se samjhao — sahi option kyun sahi hai aur baaki kyun galat.';
+  openAsk(true);
+  if (askKey()) setTimeout(() => askSend(t), 50);
+  else state.askPending = t;
+}
+
+/* 🎤 bol kar sawaal (Chrome mein chalta hai; APK WebView mein aksar nahi) */
+function askMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) { alert('Is phone/app mein bol kar likhna nahi chalta. Keyboard ka 🎤 use karo.'); return; }
+  const r = new SR(); r.lang = settings().vlang === 'en' ? 'en-IN' : 'hi-IN'; r.interimResults = false;
+  const el = document.getElementById('askInput'); toast('Boliye… 🎤');
+  r.onresult = e => { if (el) el.value = (el.value ? el.value + ' ' : '') + e.results[0][0].transcript; };
+  r.onerror = () => toast('Awaaz samajh nahi aayi');
+  try { r.start(); } catch (e) {}
+}
+
+SCREENS.ask = function () {
+  const back = `<button class="link" onclick="go(state.askBack||'home')">‹ Back</button>`;
+  if (!askKey()) {
+    return `<div class="topbar">${back}<div class="muted">Doubt poocho</div></div>
+      <div class="card"><div style="text-align:center;font-size:40px">🧑‍🏫🔑</div>
+      <div class="h1" style="text-align:center;font-size:20px;margin:6px 0 10px">Ek baar setup karna hai</div>
+      ${state.askBadKey ? '<div class="expl" style="border-left-color:var(--bad);color:var(--bad);margin-bottom:12px">Purani API key kaam nahi kar rahi thi, isliye hata di. Nayi key daalo.</div>' : ''}
+      <div style="font-size:14.5px;line-height:1.7;color:var(--ink2)">Doubt solve karne ke liye ek <b>free Google Gemini API key</b> chahiye:<br>
+      <b>1.</b> Chrome mein kholo: <b style="color:var(--gold)">aistudio.google.com/apikey</b><br><b>2.</b> Google account se login karo<br>
+      <b>3.</b> "Create API key" dabao<br><b>4.</b> Key copy karke neeche paste karo</div>
+      <input class="txt" id="askKeyInput" placeholder="AIza... yahan paste karo" style="margin-top:14px">
+      <button class="btn" style="margin-top:10px" onclick="askSetKey()">✅ Save karo</button>
+      <div class="muted" style="text-align:center;margin-top:10px">🔒 Key sirf is phone mein save hogi.</div></div>`;
+  }
+  if (state.askPending) { const t = state.askPending; state.askPending = null; setTimeout(() => askSend(t), 50); }
+  const msgs = askMsgs();
+  let chat = '';
+  if (!msgs.length) {
+    chat = `<div style="text-align:center;padding:16px 6px"><div style="font-size:42px">🧑‍🏫</div>
+      <div class="mont" style="font-weight:800;font-size:19px;margin-top:4px">Namaste ${esc(callName())}!</div>
+      <div class="muted" style="margin-top:4px">NEET ka koi bhi doubt poocho — Biology, Chemistry, Physics</div></div>`;
+  }
+  msgs.forEach(function (m, i) {
+    if (m.role === 'user') chat += `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><div style="max-width:85%;background:var(--gun,#2A2D31);color:#F2F3F6;font-size:14.5px;line-height:1.5;padding:10px 13px;border-radius:16px 16px 4px 16px;white-space:pre-wrap">${esc(m.text)}</div></div>`;
+    else chat += `<div style="margin-bottom:10px;max-width:92%"><div style="background:var(--surface2);border:1px solid var(--line);font-size:14.5px;line-height:1.6;padding:10px 13px;border-radius:16px 16px 16px 4px;white-space:pre-wrap">${esc(m.text)}</div>
+      <button class="link" style="font-size:12.5px;padding:4px 2px" onclick="askSpeak(${i})">🔊 Suno</button></div>`;
+  });
+  if (state.askBusy) chat += '<div class="muted" style="padding:8px 4px">Soch rahe hain… 💭</div>';
+  const ideas = ['Tapetum ka kaam kya hai?', 'Double fertilisation samjhao', 'Albuminous aur non-albuminous seed mein farak', 'Embryo sac 7-celled 8-nucleate kyun?', 'Apomixis aur parthenocarpy mein farak'];
+  const chips = msgs.length ? '' : '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">' + ideas.map(t => `<button class="tag g" style="border:none;cursor:pointer;font-size:12.5px;padding:7px 11px" onclick="askChip('${jsq(t)}')">${esc(t)}</button>`).join('') + '</div>';
+  setTimeout(askScrollEnd, 0);
+  return `<div class="topbar">${back}<div class="muted">🧑‍🏫 Doubt poocho</div><button class="link" style="font-size:12.5px" onclick="askClear()">🗑️ Chat</button></div>
+    <div id="askBox" class="card" style="max-height:62vh;overflow-y:auto;margin-bottom:12px">${chat}</div>${chips}
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <textarea id="askInput" rows="2" class="txt" placeholder="Apna doubt likho…" style="flex:1;resize:none;font-size:15px"></textarea>
+      <button class="iconbtn" style="height:48px;width:44px" onclick="askMic()">🎤</button>
+      <button class="btn" style="width:56px;padding:13px 0" onclick="askSend()" ${state.askBusy ? 'disabled' : ''}>➤</button></div>
+    <button class="btn gh sm" style="margin-top:10px" onclick="askForgetKey()">🔑 API key badlo</button>`;
+};
+
 /* ================= sessions (practice / test / review) ================= */
 /* RUN = {mode, title, items:[gid], i, ans:[idx|null], rev:[bool], done:[bool](practice), tq:[sec], start, end, ret} */
 function newRun(items, title, mode) {
@@ -746,7 +922,8 @@ SCREENS.run = function () {
     const pts = (q.p || []).map(p => pointText(c, p)).filter(Boolean);
     h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="tag" style="border:none;cursor:pointer;flex:0 0 auto" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}
       ${pts.length ? '<div class="pt">📌 <b>Point:</b> ' + pts.join('<br>📌 ') + '</div>' : ''}
-      <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div></div>`;
+      <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div>
+      <button class="btn gh sm" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
   }
 
   if (mode === 'test') {
