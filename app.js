@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.6';
+const APP_VER = 'v1.7';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -387,7 +387,7 @@ SCREENS.home = function () {
     <div class="qa" onclick="go('tests')"><div class="e">🏆</div><div class="n">NEET Mock</div><div class="s">180 Q · 180 min</div></div>
     <div class="qa" onclick="startList(mistakes(),'Galtiyan sudharo','practice')"><div class="e">🎯</div><div class="n">Mistakes</div><div class="s">${mk} questions</div></div>
     <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>
-    <div class="tile" style="margin-top:9px;border-color:var(--gold)" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
+    <div class="tile glow" style="margin-top:9px" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
       <div class="s">Koi bhi sawaal — NCERT ke hisaab se samjhaya jayega</div></div><div class="ch">›</div></div>`;
 
   h += `<div class="sec">Subjects</div>` + SUBJ.map(subjTile).join('');
@@ -923,7 +923,7 @@ SCREENS.run = function () {
     h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="tag" style="border:none;cursor:pointer;flex:0 0 auto" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}
       ${pts.length ? '<div class="pt">📌 <b>Point:</b> ' + pts.join('<br>📌 ') + '</div>' : ''}
       <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div>
-      <button class="btn gh sm" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
+      <button class="btn gh sm glow" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
   }
 
   if (mode === 'test') {

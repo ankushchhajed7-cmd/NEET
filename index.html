@@ -204,6 +204,14 @@
   input.txt,textarea.txt{width:100%;padding:13px;border-radius:var(--r2);border:1.5px solid var(--line);background:var(--surface);
     color:var(--ink);font-size:16px;font-family:inherit}
   input.txt:focus,textarea.txt:focus{outline:none;border-color:var(--gold)}
+  /* Doubt poocho — hari roshni mein blink */
+  @keyframes greenBlink{
+    0%,100%{border-color:#22C55E;box-shadow:0 0 0 1px rgba(34,197,94,.55),0 0 14px 2px rgba(34,197,94,.45)}
+    50%{border-color:rgba(34,197,94,.25);box-shadow:0 0 0 0 rgba(34,197,94,0),0 0 0 0 rgba(34,197,94,0)}
+  }
+  .glow{border:2px solid #22C55E!important;animation:greenBlink 1.4s ease-in-out infinite}
+  .glow .n,.glow.btn{color:#16A34A!important}
+  :root[data-theme="dark"] .glow .n,:root[data-theme="dark"] .glow.btn{color:#4ADE80!important}
   .splash{display:grid;place-items:center;min-height:80vh}
   .splash img{width:120px;height:120px;border-radius:28px;box-shadow:0 0 0 1px rgba(230,185,74,.4),0 20px 50px -14px rgba(230,185,74,.45)}
 </style>
