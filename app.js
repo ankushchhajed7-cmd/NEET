@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.9';
+const APP_VER = 'v1.10';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -886,42 +886,9 @@ SCREENS.report = function () {
   if (R.hist.length) h += `<div class="sec">Haal ke test</div>` + R.hist.slice(-5).reverse().map(x =>
     `<div class="tile" style="cursor:default"><div class="ic mont" style="font-size:13px;font-weight:800">${Math.round(x.score / Math.max(1, x.max) * 100)}%</div><div class="g1"><div class="n">${esc(x.title)}</div>
     <div class="s">${x.date} · ${x.score}/${x.max} · ✓${x.c} ✗${x.w} –${x.u} · ${fmtTime(x.dur)}</div></div></div>`).join('');
-  const ph = load('neet_parent', '');
-  h += `<div class="sec">WhatsApp par report</div>
-    <div class="row"><input class="txt" id="pph" inputmode="tel" value="${esc(ph)}" placeholder="Papa ka WhatsApp number (10 digit)">
-    <button class="btn gh sm" style="flex:0 0 80px" onclick="saveParent()">Save</button></div>
-    <button class="btn" style="margin-top:9px;background:#25D366;color:#fff;box-shadow:none" onclick="sendReport()">📤 WhatsApp par report bhejo</button>
-    <div class="muted" style="margin-top:8px;line-height:1.5">Number save ho to report seedha usi number par jayegi. Bhejne ke baad is phone ki WhatsApp chat se message "Delete for me" kar sakte ho.</div>
-    <button class="btn gh sm" style="margin-top:14px" onclick="if(confirm('PIN badalna hai?')){save('neet_ppin','');state.parentOk=false;go('pin')}">🔒 PIN badlo</button>`;
+  h += `<button class="btn gh sm" style="margin-top:14px" onclick="if(confirm('PIN badalna hai?')){save('neet_ppin','');state.parentOk=false;go('pin')}">🔒 PIN badlo</button>`;
   return h;
 };
-function saveParent() {
-  const v = (document.getElementById('pph').value || '').replace(/\D/g, '');
-  if (v && v.length < 10) { alert('Poora 10 digit number likho.'); return; }
-  save('neet_parent', v); toast(v ? 'Number save ho gaya' : 'Number hata diya');
-}
-function reportText() {
-  const R = reportData(), t = R.today, L = [];
-  L.push('📊 *' + callName() + ' — NEET padhai report*', niceDay(new Date()), '');
-  L.push('*Aaj:*', '• Sawaal: ' + t.n + (t.c != null ? ' (sahi ' + t.c + ', accuracy ' + pct(t.acc) + ')' : ''),
-    '• Padhai ka samay: ' + mins(t.tm), '• Test: ' + (t.tests.length ? t.tests.map(x => x.title + ' ' + x.score + '/' + x.max).join(', ') : 'koi nahi'),
-    '• Doubt poochhe: ' + t.doubts, '');
-  L.push('*Pichhle 7 din:*');
-  R.week.forEach(d => L.push('• ' + niceDay(d.d) + ': ' + d.n + ' sawaal' + (d.acc != null ? ', ' + pct(d.acc) + ' sahi' : '') + (d.tm ? ', ' + mins(d.tm) : '')));
-  L.push('', '*Ab tak:*', '• Sawaal kiye: ' + R.sm.seen + '/' + R.sm.total + ' · accuracy ' + pct(R.sm.acc),
-    '• Kul padhai: ' + mins(R.totTime) + ' · streak ' + R.streak + ' din', '• Revision points: ' + R.ptsRev + '/' + R.pts + ' · galtiyan baaki: ' + R.mk,
-    '• Test diye: ' + R.hist.length);
-  if (R.weak.length) { L.push('', '*Kamzor topics:*'); R.weak.slice(0, 3).forEach(w => L.push('• ' + plain(w.p.t).slice(0, 90) + '… (' + pct(w.acc) + ')')); }
-  return L.join('\n');
-}
-function sendReport() {
-  const el = document.getElementById('pph'); if (el && el.value.replace(/\D/g, '') !== load('neet_parent', '')) saveParent();
-  let ph = load('neet_parent', ''); if (ph.length === 10) ph = '91' + ph;
-  const url = 'https://wa.me/' + ph + '?text=' + encodeURIComponent(reportText());
-  // APK (apk-factory) wa.me ko seedha WhatsApp mein kholta hai
-  if (window.ANVAlert || /\bwv\b/.test(navigator.userAgent)) location.href = url; else window.open(url, '_blank');
-}
-
 /* ================= sessions (practice / test / review) ================= */
 /* RUN = {mode, title, items:[gid], i, ans:[idx|null], rev:[bool], done:[bool](practice), tq:[sec], start, end, ret} */
 function newRun(items, title, mode) {
