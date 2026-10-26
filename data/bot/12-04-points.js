@@ -1,6 +1,5 @@
 /* NCERT Biology Class XII — Chapter 4: Principles of Inheritance and Variation
-   Points book ke page 52, 55–76 se. Page 53–54 (4.1 ki shuruaat) PDF mein nahi the — wo points
-   NCERT ke standard text se liye gaye (src53 tag). Questions: 12-04-q1..q3.js */
+   Points book ke page 52–76 se (page 54 alag photo se). Questions: 12-04-q1..q5.js */
 addChapter({
   id: 'bot-12-04',
   subj: 'bot',
@@ -13,13 +12,19 @@ addChapter({
     { id: 'i1', topic: 'Introduction', t: 'Genetics is the branch of biology that deals with inheritance as well as variation of characters from parents to offspring.' },
     { id: 'i2', topic: 'Introduction', t: 'Inheritance is the process by which characters are passed on from parent to progeny; it is the basis of heredity. Variation is the degree by which progeny differ from their parents.' },
     { id: 'i3', topic: 'Introduction', t: 'Humans knew from as early as 8000–1000 B.C. that one of the causes of variation was hidden in sexual reproduction; they exploited natural variation to selectively breed organisms with desirable characters — artificial selection and domestication (e.g. Sahiwal cows of Punjab from ancestral wild cows).' },
+    { id: 'i4', topic: 'Introduction', t: 'Though our ancestors knew about inheritance and variation, they had very little idea about the scientific basis of these phenomena.' },
 
     /* ---------- 4.1 Mendel (book p53-54) ---------- */
+    { id: 'm0', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'It was during the mid-nineteenth century that headway was made in the understanding of inheritance.' },
     { id: 'm1', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Gregor Mendel conducted hybridisation experiments on garden peas for seven years (1856–1863) and proposed the laws of inheritance in living organisms.' },
     { id: 'm2', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Mendel was the first to apply statistical analysis and mathematical logic to problems in biology; his experiments had a large sampling size, giving greater credibility to his data.' },
+    { id: 'm6', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Confirmation of his inferences from experiments on successive generations of his test plants proved that his results pointed to general rules of inheritance rather than unsubstantiated ideas.' },
+    { id: 'm7', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Mendel investigated characters in the garden pea that were manifested as two opposing traits (e.g. tall or dwarf plants, yellow or green seeds). This let him set up a basic framework of rules governing inheritance, later expanded by other scientists to account for the diverse natural observations and their complexity.' },
+    { id: 'm8', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Mendel conducted artificial pollination/cross pollination experiments using several true-breeding pea lines.' },
     { id: 'm3', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'A true-breeding line is one that, having undergone continuous self-pollination, shows stable trait inheritance and expression for several generations.' },
-    { id: 'm4', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Mendel selected 14 true-breeding pea varieties as pairs which were similar except for one character with contrasting traits (7 pairs of contrasting traits).' },
+    { id: 'm4', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Mendel selected 14 true-breeding pea varieties as pairs which were similar except for one character with contrasting traits — e.g. smooth or wrinkled seeds, yellow or green seeds, inflated (full) or constricted pods, green or yellow pods, tall or dwarf plants (7 pairs).' },
     { id: 'm5', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Table 4.1 — 7 contrasting traits studied by Mendel in pea: stem height tall/dwarf; flower colour violet/white; flower position axial/terminal; pod shape inflated/constricted; pod colour green/yellow; seed shape round/wrinkled; seed colour yellow/green.' },
+    { id: 'm9', topic: '4.1 Mendel\'s Laws of Inheritance', t: 'Fig 4.1 — seven pairs of contrasting traits in pea (dominant/recessive): seed shape round/wrinkled; seed colour yellow/green; flower colour violet/white; pod shape full/constricted; pod colour green/yellow; flower position axial/terminal; stem height tall/dwarf.' },
 
     /* ---------- 4.2 One gene ---------- */
     { id: 'o1', topic: '4.2 Inheritance of One Gene', t: 'Mendel crossed tall and dwarf pea plants to study inheritance of one gene; seeds produced by this cross were grown to generate plants of the first hybrid generation — the Filial1 progeny or F1.' },
