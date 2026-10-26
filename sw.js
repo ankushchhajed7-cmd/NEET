@@ -1,14 +1,16 @@
 /* NEET service worker — network first, offline fallback.
    Har update par CACHE ka number badal do: neet-v2, neet-v3 ...
    Naya chapter file add karo to FILES list mein bhi jodo (offline ke liye). */
-const CACHE = 'neet-v13';
+const CACHE = 'neet-v14';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png',
   './data/subjects.js',
   './data/bot/12-01-points.js', './data/bot/12-01-q1.js', './data/bot/12-01-q2.js',
-  './data/bot/12-01-q3.js', './data/bot/12-01-q4.js'
+  './data/bot/12-01-q3.js', './data/bot/12-01-q4.js',
+  './data/bot/12-04-points.js', './data/bot/12-04-q1.js', './data/bot/12-04-q2.js', './data/bot/12-04-q3.js', './data/bot/12-04-q4.js',
+  './data/bot/12-05-points.js', './data/bot/12-05-q1.js', './data/bot/12-05-q2.js', './data/bot/12-05-q3.js', './data/bot/12-05-q4.js', './data/bot/12-05-q5.js'
 ];
 
 self.addEventListener('install', e => {
