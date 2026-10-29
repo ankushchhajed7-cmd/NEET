@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.18';
+const APP_VER = 'v1.19';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -418,15 +418,49 @@ SCREENS.subject = function () {
       <button class="btn sm" onclick="startMixed('${s.id}',45,'test')" ${chs.length ? '' : 'disabled'}>📝 Subject test</button>
       <button class="btn gh sm" onclick="startList(mistakes('${s.id}'),'${s.name} — mistakes','practice')">🎯 Mistakes (${mk})</button></div>`;
   if (!chs.length) return h + `<div class="empty">📄 Is subject ka content abhi nahi aaya.<br>PDF bhejo — har chapter yahan aa jayega.</div>`;
-  let cls = null;
+  let cls = null; const seenUnit = {};
   chs.forEach(function (c) {
     if (c.cls !== cls) { cls = c.cls; h += `<div class="sec">Class ${cls || '—'}</div>`; }
-    const sm = summary(allGids([c]));
-    const rv = Object.keys(revised()[c.id] || {}).length, np = (c.points || []).length;
-    h += `<div class="tile" onclick="openChapter('${c.id}')">${ring(sm.total ? sm.seen / sm.total : 0, sm.seen ? pct(sm.acc) : (c.no || '•'), 44)}
+    if (c.unit) {
+      const key = c.cls + '|' + c.unit;
+      if (!seenUnit[key]) { seenUnit[key] = 1; h += unitTile(s.id, c.cls, c.unit); }
+      return;
+    }
+    h += chapterTile(c);
+  });
+  return h;
+};
+function chapterTile(c) {
+  const sm = summary(allGids([c]));
+  const rv = Object.keys(revised()[c.id] || {}).length, np = (c.points || []).length;
+  return `<div class="tile" onclick="openChapter('${c.id}')">${ring(sm.total ? sm.seen / sm.total : 0, sm.seen ? pct(sm.acc) : (c.no || '•'), 44)}
       <div class="g1"><div class="n">${c.no ? c.no + '. ' : ''}${esc(c.title)}</div>
       <div class="s">${sm.total} Qs · ${sm.seen} done · ${rv}/${np} points revised${sm.wrong ? ' · <span style="color:var(--bad)">' + sm.wrong + ' galat</span>' : ''}</div></div><div class="ch">›</div></div>`;
-  });
+}
+/* Unit = chapters ka group ek subject ke andar (jaise Zoology → Human Physiology) */
+function unitChapters(sid, cls, unit) { return chaptersOf(sid).filter(c => c.cls === cls && c.unit === unit); }
+function unitTile(sid, cls, unit) {
+  const chs = unitChapters(sid, cls, unit), sm = summary(allGids(chs));
+  return `<div class="tile" onclick="openUnit('${sid}',${cls},'${esc(unit)}')"><div class="ic">📂</div><div class="g1">
+    <div class="n">${esc(unit)}</div>
+    <div class="s">${chs.length} chapters · ${sm.total} Qs · accuracy ${pct(sm.acc)}</div>
+    <div class="bar"><i style="width:${sm.total ? sm.seen / sm.total * 100 : 0}%"></i></div></div><div class="ch">›</div></div>`;
+}
+function openUnit(sid, cls, unit) { state.subj = sid; state.unit = { cls: cls, name: unit }; go('unit'); }
+function startUnitTest() {
+  const u = state.unit, chs = unitChapters(state.subj, u.cls, u.name);
+  startList(shuffle(allGids(chs)).slice(0, 45), u.name + ' — test', 'test');
+}
+SCREENS.unit = function () {
+  if (!state.unit || !subjOf(state.subj)) { state.screen = state.subj ? 'subject' : 'subjects'; return SCREENS[state.screen](); }
+  const s = subjOf(state.subj), u = state.unit, chs = unitChapters(s.id, u.cls, u.name);
+  let h = `<div class="topbar"><button class="link" onclick="openSubject('${s.id}')">‹ ${s.name}</button>
+    <span class="tag g">Class ${u.cls || '—'}</span></div>
+    <div class="h1">📂 ${esc(u.name)}</div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn sm" onclick="startUnitTest()" ${chs.length ? '' : 'disabled'}>📝 ${esc(u.name)} test</button></div>
+    <div class="sec">Chapters</div>`;
+  chs.forEach(function (c) { h += chapterTile(c); });
   return h;
 };
 
@@ -435,7 +469,7 @@ function openChapter(id) { state.cid = id; state.subj = chOf(id).subj; state.chT
 SCREENS.chapter = function () {
   const c = chOf(state.cid), gids = allGids([c]), sm = summary(gids), pos = load('neet_pos', {})[c.id] || 0;
   const mk = mistakes().filter(g => QIDX[g].c.id === c.id), bm = bookmarks().filter(g => QIDX[g].c.id === c.id);
-  let h = `<div class="topbar"><button class="link" onclick="openSubject('${c.subj}')">‹ ${subjOf(c.subj).name}</button>
+  let h = `<div class="topbar">${c.unit ? `<button class="link" onclick="openUnit('${c.subj}',${c.cls},'${esc(c.unit)}')">‹ ${esc(c.unit)}</button>` : `<button class="link" onclick="openSubject('${c.subj}')">‹ ${subjOf(c.subj).name}</button>`}
     <span class="tag g">Class ${c.cls || '—'}${c.no ? ' · Ch ' + c.no : ''}</span></div>
     <div class="h1">${esc(c.title)}</div>${c.src ? `<div class="muted" style="margin-top:4px">${esc(c.src)}</div>` : ''}
     <div class="stats"><div class="stat"><b>${sm.seen}/${sm.total}</b><span>Done</span></div>
