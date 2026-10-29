@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.19';
+const APP_VER = 'v1.20';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -434,7 +434,7 @@ function chapterTile(c) {
   const sm = summary(allGids([c]));
   const rv = Object.keys(revised()[c.id] || {}).length, np = (c.points || []).length;
   return `<div class="tile" onclick="openChapter('${c.id}')">${ring(sm.total ? sm.seen / sm.total : 0, sm.seen ? pct(sm.acc) : (c.no || '•'), 44)}
-      <div class="g1"><div class="n">${c.no ? c.no + '. ' : ''}${esc(c.title)}</div>
+      <div class="g1"><div class="n chn">${c.no ? c.no + '. ' : ''}${esc(c.title)}</div>
       <div class="s">${sm.total} Qs · ${sm.seen} done · ${rv}/${np} points revised${sm.wrong ? ' · <span style="color:var(--bad)">' + sm.wrong + ' galat</span>' : ''}</div></div><div class="ch">›</div></div>`;
 }
 /* Unit = chapters ka group ek subject ke andar (jaise Zoology → Human Physiology) */
