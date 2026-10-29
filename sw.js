@@ -1,7 +1,7 @@
 /* NEET service worker — network first, offline fallback.
    Har update par CACHE ka number badal do: neet-v2, neet-v3 ...
    Naya chapter file add karo to FILES list mein bhi jodo (offline ke liye). */
-const CACHE = 'neet-v22';
+const CACHE = 'neet-v23';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
@@ -15,6 +15,7 @@ const FILES = [
   './data/bot/11-05.js', './data/bot/11-06.js', './data/bot/11-08.js', './data/bot/11-10.js', './data/bot/11-11.js', './data/bot/11-12.js', './data/bot/11-13.js',
   './data/zoo/11-04.js', './data/zoo/11-07.js', './data/zoo/11-09.js',
   './data/zoo/11-14.js', './data/zoo/11-15.js', './data/zoo/11-16.js', './data/zoo/11-17.js', './data/zoo/11-18.js', './data/zoo/11-19.js',
+  './data/zoo/12-03.js', './data/zoo/12-06.js', './data/zoo/12-07.js', './data/zoo/12-09.js', './data/zoo/12-10.js',
   './data/bot/12-08.js', './data/bot/12-11.js', './data/bot/12-12.js', './data/bot/12-13.js'
 ];
 
