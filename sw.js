@@ -7,7 +7,7 @@ const FILES = [
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
   './icons/apple-touch-icon.png', './icons/favicon-32.png',
   './data/subjects.js',
-  './data/phy/11-01.js', './data/phy/11-02.js',
+  './data/phy/11-01.js', './data/phy/11-02.js', './data/phy/11-03.js',
   './data/bot/12-01-points.js', './data/bot/12-01-q1.js', './data/bot/12-01-q2.js',
   './data/bot/12-01-q3.js', './data/bot/12-01-q4.js',
   './data/bot/12-04-points.js', './data/bot/12-04-q1.js', './data/bot/12-04-q2.js', './data/bot/12-04-q3.js', './data/bot/12-04-q4.js', './data/bot/12-04-q5.js',
