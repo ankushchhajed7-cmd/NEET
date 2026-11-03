@@ -154,6 +154,10 @@
   .expl{margin-top:4px;background:var(--surface2);border:1px solid var(--line);border-left:3px solid var(--gold);
     border-radius:var(--r1);padding:12px 13px;font-size:14.5px;line-height:1.55}
   .expl .h{font-family:Montserrat,sans-serif;font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px}
+  .expl .sol{margin:8px 0 0;padding-left:20px}
+  .expl .sol li{margin:3px 0}
+  .qimg{text-align:center;margin-top:10px;color:var(--ink)}
+  .qimg svg{max-width:100%;height:auto}
   .expl .pt{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink2)}
   .timer{font-family:Montserrat,sans-serif;font-weight:800;font-size:15px;padding:6px 10px;border-radius:10px;
     background:var(--surface);border:1px solid var(--line)}
@@ -242,6 +246,7 @@
   var v = ''; try { v = localStorage.getItem('neet_bust') || ''; } catch (e) {}
   [
     'data/subjects.js',
+    'data/phy/11-02.js',
     'data/bot/12-01-points.js',
     'data/bot/12-01-q1.js',
     'data/bot/12-01-q2.js',

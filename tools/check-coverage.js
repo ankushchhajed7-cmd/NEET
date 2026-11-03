@@ -65,7 +65,9 @@ chs.forEach(c => {
     if (q.type === 'ar' && !(q.ar && q.ar.A && q.ar.R)) err(tag + ': ar.A / ar.R chahiye');
     if (q.type === 'st' && !(q.st && q.st.length === 2)) err(tag + ': st mein 2 statements chahiye');
     if (q.type === 'match' && !(q.match && q.match.l && q.match.r)) err(tag + ': match.l / match.r chahiye');
-    if ((q.type === 'mcq' || q.type === 'stmts' || !q.type) && !q.q) err(tag + ': question text (q) nahi hai');
+    if ((q.type === 'mcq' || q.type === 'num' || q.type === 'stmts' || !q.type) && !q.q) err(tag + ': question text (q) nahi hai');
+    if (q.type === 'num' && !(q.sol && q.sol.length >= 2)) err(tag + ': numerical ka step-by-step solution (sol, kam se kam 2 step) chahiye');
+    if (q.img && /'/.test(q.img)) err(tag + ': img mein single quote nahi chalega');
     if (q.o && new Set(q.o).size !== q.o.length) err(tag + ': do options same hain');
   });
   const missing = pts.filter(p => hits[p.id] < MIN);

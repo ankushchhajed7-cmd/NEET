@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.23';
+const APP_VER = 'v1.24';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -18,7 +18,7 @@ const CHS = window.NEET_CH.slice().sort(function (a, b) {
    hamesha (2) par na rahe. "How many / statements" wale (stmts) aur A-R, St I/II ka order NEET jaisa hi rehta hai. */
 function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return function () { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; }; }
 function mixOptions(g, q) {
-  if (!q.o || q.fixed || (q.type !== 'mcq' && q.type !== 'match')) return;
+  if (!q.o || q.fixed || (q.type !== 'mcq' && q.type !== 'match' && q.type !== 'num')) return;
   const rnd = seeded(g), idx = q.o.map((_, i) => i);
   for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
   const o = idx.map(i => q.o[i]);
@@ -155,9 +155,9 @@ function qHTML(q) {
     h += '</table>';
   } else {
     h += '<p>' + v.q + '</p>';
-    if (v.s) h += '<ul class="stl">' + v.s.map((s, i) => '<li><b>' + LETTERS[i] + '.</b> ' + s + '</li>').join('') + '</ul>';
+    if (v.s) h += '<ul class="stl">' + v.s.map((s, i) => '<li><b>' + (hi ? 'कथन ' : 'Statement ') + ROMAN[i] + ':</b> ' + s + '</li>').join('') + '</ul>';
   }
-  if (v.img) h += '<div style="text-align:center;margin-top:10px">' + v.img + '</div>';
+  if (v.img) h += '<div class="qimg">' + v.img + '</div>';
   return h;
 }
 function pointText(c, pid) { const p = (c.points || []).find(x => x.id === pid); return p ? p.t : ''; }
@@ -267,9 +267,12 @@ function readQuestion() {
   const opts = optsOf(q).map((o, k) => (hi ? 'विकल्प ' : 'Option ') + (k + 1) + '. ' + plain(o)).join('. ');
   speak(plain(qHTML(q)) + '. ' + opts, hi ? 'hi' : 'en');
 }
+/* Numerical ka step-by-step solution: q.sol = ['Given: ...', 'Formula: ...', ...] */
+function solHTML(v) { return v.sol && v.sol.length ? '<ol class="sol">' + v.sol.map(s => '<li>' + s + '</li>').join('') + '</ol>' : ''; }
+function explText(v) { return plain(v.e) + (v.sol && v.sol.length ? '. Solution: ' + v.sol.map(plain).join('. ') : ''); }
 function readExpl() {
   if (!RUN) return; const q = QIDX[RUN.items[RUN.i]].q, v = V(q);
-  speak((isHi(q) ? 'सही जवाब विकल्प ' : 'The correct answer is option ') + (q.a + 1) + '. ' + plain(v.e), isHi(q) ? 'hi' : 'en');
+  speak((isHi(q) ? 'सही जवाब विकल्प ' : 'The correct answer is option ') + (q.a + 1) + '. ' + explText(v), isHi(q) ? 'hi' : 'en');
 }
 function appEnv() {
   const ua = navigator.userAgent || '';
@@ -776,7 +779,7 @@ function askAboutQ() {
   const opts = optsOf(q).map((o, k) => '(' + (k + 1) + ') ' + plain(o)).join('\n');
   const t = 'Is NEET sawaal mein doubt hai (' + c.title + '):\n\n' + plain(qHTML(q)) + '\n' + opts +
     '\n\nSahi jawab: (' + (q.a + 1) + ')' + (sel == null ? '' : '\nMera jawab: (' + (sel + 1) + ')') +
-    '\nBook explanation: ' + plain(v.e) + '\n\nIse achhe se samjhao — sahi option kyun sahi hai aur baaki kyun galat.';
+    '\nBook explanation: ' + explText(v) + '\n\nIse achhe se samjhao — sahi option kyun sahi hai aur baaki kyun galat.';
   openAsk(true);
   if (askKey()) setTimeout(() => askSend(t), 50);
   else state.askPending = t;
@@ -939,7 +942,7 @@ SCREENS.run = function () {
     ${mode === 'test' ? '<div class="timer" id="timer">⏱</div>' : `<button class="iconbtn ${isBm ? 'on' : ''}" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>`}</div>`;
 
   h += `<div class="card"><div class="qhead"><div class="qno">Q ${i + 1} / ${n}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-    <span class="tag">${subjOf(c.subj).name}</span>${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
+    <span class="tag">${subjOf(c.subj).name}</span>${q.type === 'num' ? '<span class="tag g">🧮 Numerical</span>' : ''}${q.tag ? `<span class="tag">${esc(q.tag)}</span>` : ''}${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
     ${mode === 'test' ? `<button class="tag" style="border:none;cursor:pointer" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>` : ''}
     <button class="suno" style="font-size:13px;padding:6px 12px" onclick="readQuestion()" title="Sawaal suno">🔊 Suno</button></div></div>
     <div class="qtext">${qHTML(q)}</div></div><div style="margin-top:12px">`;
@@ -957,7 +960,7 @@ SCREENS.run = function () {
     const head = sel == null ? '<span style="color:var(--soft)">Chhoda tha · sahi jawab (' + (q.a + 1) + ')</span>'
       : ok ? '<span style="color:var(--ok)">✓ Sahi jawab! +4</span>' : '<span style="color:var(--bad)">✗ Galat · sahi jawab (' + (q.a + 1) + ')</span>';
     const pts = (q.p || []).map(p => pointText(c, p)).filter(Boolean);
-    h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="suno" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}
+    h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="suno" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}${solHTML(v)}
       ${pts.length ? '<div class="pt">📌 <b>Point:</b> ' + pts.join('<br>📌 ') + '</div>' : ''}
       <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div>
       <button class="btn gh sm glow" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
