@@ -6,7 +6,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 - `app.js` → `APP_VER = 'v1.24'`
 - `sw.js` → `CACHE = 'neet-v25'`
 
-## Content (NCERT Biology)
+## Content (NCERT)
 | Subject | Class 11 | Class 12 |
 |---|---|---|
 | Botany | Ch 1, 2, 3, 5, 6, 8, 10, 11, 12, 13 | Ch 1, 4, 5, 8, 11, 12, 13 |
