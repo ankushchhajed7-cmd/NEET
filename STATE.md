@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.24'`
-- `sw.js` → `CACHE = 'neet-v25'`
+- `app.js` → `APP_VER = 'v1.25'`
+- `sw.js` → `CACHE = 'neet-v26'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.24): 33 chapters · 2301 points · 4939 questions.
 
 ## Version history (recent)
+- **v1.25** — Physics XI Ch 2 review: all 60 numericals re-solved and correct; q41 (match Fig 2.3 v–t graphs) now shows the four graphs (a)–(d) as inline SVG.
 - **v1.24** — Physics XI Ch 2 *Motion in a Straight Line* (`data/phy/11-02.js`): 60 points, 151 questions (60 numericals with step-by-step solutions, 17 graph/diagram questions as inline SVG). App: new `num` question type (🧮 Numerical tag + `sol` steps), `tag` label, `img` styling, `stmts` statements shown as Statement I/II/III.
 - **v1.23** — Zoology XII Ch 2 *Human Reproduction* (`data/zoo/12-02.js`): 80 points, 187 questions; covers every section 2.1–2.7, Fig 2.1–2.12 labels, Menstrual Hygiene box and Summary (chapter has no table).
 - v1.22 — Zoology XII Ch 3, 6, 7, 9, 10.
