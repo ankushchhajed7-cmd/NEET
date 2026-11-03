@@ -45,5 +45,8 @@ GitHub Pages par host karo (Settings → Pages → branch `main`, folder `/`). P
 | `st` | `st: [I, II]` | default 4 NEET options |
 | `match` | `match: { h:[..], l:[..], r:[..] }`, `q` | `o` codes jaise `A-III, B-I, ...` |
 | `stmts` | `q`, `s: [...]` | `o` (order fixed rehta hai) |
+| `num` | `q`, `sol: ['Given ...', 'Formula ...', 'Substitution ...', 'Answer ...']` | `o` (Numerical — 🧮 tag, explanation ke neeche step-by-step solution) |
+
+Extra (kisi bhi type mein): `img` = inline SVG/HTML (graph ya diagram), `tag` = chhota label jaise `'📈 Graph'`, `'🖼 Diagram'`. `stmts` ke `s` array ke statements "Statement I, II, III" ke label se dikhte hain.
 
 Hindi: kisi bhi question mein `h: { q, o, e, s, ar, st, match }` jodo.

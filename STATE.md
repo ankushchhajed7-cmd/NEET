@@ -3,19 +3,21 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.23'`
-- `sw.js` → `CACHE = 'neet-v24'`
+- `app.js` → `APP_VER = 'v1.24'`
+- `sw.js` → `CACHE = 'neet-v25'`
 
 ## Content (NCERT Biology)
 | Subject | Class 11 | Class 12 |
 |---|---|---|
 | Botany | Ch 1, 2, 3, 5, 6, 8, 10, 11, 12, 13 | Ch 1, 4, 5, 8, 11, 12, 13 |
 | Zoology | Ch 4, 7, 9, 14–19 (14–19 grouped as "Human Physiology") | Ch 2, 3, 6, 7, 9, 10 |
-| Physics / Chemistry | — | — |
+| Physics | Ch 2 | — |
+| Chemistry | — | — |
 
-Total (v1.23): 32 chapters · 2241 points · 4788 questions.
+Total (v1.24): 33 chapters · 2301 points · 4939 questions.
 
 ## Version history (recent)
+- **v1.24** — Physics XI Ch 2 *Motion in a Straight Line* (`data/phy/11-02.js`): 60 points, 151 questions (60 numericals with step-by-step solutions, 17 graph/diagram questions as inline SVG). App: new `num` question type (🧮 Numerical tag + `sol` steps), `tag` label, `img` styling, `stmts` statements shown as Statement I/II/III.
 - **v1.23** — Zoology XII Ch 2 *Human Reproduction* (`data/zoo/12-02.js`): 80 points, 187 questions; covers every section 2.1–2.7, Fig 2.1–2.12 labels, Menstrual Hygiene box and Summary (chapter has no table).
 - v1.22 — Zoology XII Ch 3, 6, 7, 9, 10.
 - v1.21 — Zoology XI Ch 4, 7, 9.
@@ -31,7 +33,9 @@ Total (v1.23): 32 chapters · 2241 points · 4788 questions.
 - Match options use app codes `A-III, B-I, ...` (app labels List I as A–D, List II as I–IV).
 - Correct answers spread over all four options; A-R and Statement I/II use all four answer values.
 - Facts only from NCERT text, figures, boxes and summary.
+- Physics chapters: NCERT points + Points to Ponder + key Exercises; NEET-style numericals (`type: 'num'`, `sol: [Given, Formula, Substitution, Answer]`), graph/diagram questions via inline SVG in `img` (currentColor + gold #D9A520, no single quotes), plus A-R, Statement, Match, multi-concept questions; easy/medium/hard mix.
 
 ## Pending
 - With Zoology XII Ch 2, all 19 Class XI and 13 Class XII NCERT Biology chapters (current numbering) are in the app.
-- Physics and Chemistry not started.
+- Physics: remaining Class XI and XII chapters (send NCERT PDFs one by one). Chemistry not started.
+- Sample rotational-motion question (hollow cylinder, a = g/2) belongs to Physics XI Ch 6 — add when that chapter is done.
