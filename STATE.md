@@ -40,4 +40,3 @@ Total (v1.26): 44 chapters · 2902 points · 6255 questions.
 ## Pending
 - With Zoology XII Ch 2, all 19 Class XI and 13 Class XII NCERT Biology chapters (current numbering) are in the app.
 - Physics: Class XI Ch 4 (Laws of Motion) and Ch 10 (Thermal Properties of Matter) pending; Class XII not started. Chemistry not started.
-- Sample rotational-motion question (hollow cylinder, a = g/2) belongs to Physics XI Ch 6 — add when that chapter is done.
