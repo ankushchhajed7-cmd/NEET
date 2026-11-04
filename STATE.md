@@ -3,7 +3,7 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.26'`
+- `app.js` → `APP_VER = 'v1.27'`
 - `sw.js` → `CACHE = 'neet-v27'`
 
 ## Content (NCERT)
@@ -11,12 +11,13 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 |---|---|---|
 | Botany | Ch 1, 2, 3, 5, 6, 8, 10, 11, 12, 13 | Ch 1, 4, 5, 8, 11, 12, 13 |
 | Zoology | Ch 4, 7, 9, 14–19 (14–19 grouped as "Human Physiology") | Ch 2, 3, 6, 7, 9, 10 |
-| Physics | Ch 1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13, 14 | — |
+| Physics | Ch 1–14 (Class XI complete) | — |
 | Chemistry | — | — |
 
-Total (v1.26): 44 chapters · 2902 points · 6255 questions.
+Total (v1.27): 46 chapters · 3023 points · 6531 questions.
 
 ## Version history (recent)
+- **v1.27** — Physics XI Ch 4 *Laws of Motion* (`data/phy/11-04.js`: 60 points, 133 questions, 44 numericals, 19 graph/diagram) and Ch 10 *Thermal Properties of Matter* (`data/phy/11-10.js`: 61 points, 143 questions, 39 numericals, 18 graph/diagram). Physics Class XI now complete.
 - **v1.26** — Physics XI Ch 1, 3, 5, 6, 7, 8, 9, 11, 12, 13, 14 (`data/phy/11-xx.js`): 651 points, 1316 questions, 467 numericals with step-by-step solutions, 157 graph/diagram questions (inline SVG). Covers every section, figure, table, box, summary, points to ponder and exercises. Ch 4 and Ch 10 PDFs not received yet.
 - **v1.25** — Physics XI Ch 2 review: all 60 numericals re-solved and correct; q41 (match Fig 2.3 v–t graphs) now shows the four graphs (a)–(d) as inline SVG.
 - **v1.24** — Physics XI Ch 2 *Motion in a Straight Line* (`data/phy/11-02.js`): 60 points, 151 questions (60 numericals with step-by-step solutions, 17 graph/diagram questions as inline SVG). App: new `num` question type (🧮 Numerical tag + `sol` steps), `tag` label, `img` styling, `stmts` statements shown as Statement I/II/III.
@@ -39,4 +40,4 @@ Total (v1.26): 44 chapters · 2902 points · 6255 questions.
 
 ## Pending
 - With Zoology XII Ch 2, all 19 Class XI and 13 Class XII NCERT Biology chapters (current numbering) are in the app.
-- Physics: Class XI Ch 4 (Laws of Motion) and Ch 10 (Thermal Properties of Matter) pending; Class XII not started. Chemistry not started.
+- Physics: Class XI complete (Ch 1–14); Class XII not started. Chemistry not started.
