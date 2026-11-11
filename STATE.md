@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.35'`
-- `sw.js` → `CACHE = 'neet-v36'`
+- `app.js` → `APP_VER = 'v1.36'`
+- `sw.js` → `CACHE = 'neet-v37'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.30): 68 chapters · 3989 points · 9073 questions.
 
 ## Version history (recent)
+- **v1.36** — Chapter page par bada green **🎬 Video lesson — poora chapter** button: har point ka video ek ke baad ek apne aap (playlist), ‹ Pichhla / Agla › point, jahan chhoda wahin se (`neet_vpos`).
 - **v1.35** — Biology video: video solution ab A-R (Assertion, Reason alag), Statement I/II, Statement I–IV aur Match (har pair A → II) ko step-by-step dikhata hai. Har NCERT point par 🎬 Video (point ki lines ek-ek karke + related figure + Practice) aur ✨ AI lesson (Gemini: facts, example, diagram in words, mnemonic, NEET traps, check question; cache `pt:cid|pid`). Chapter page aur Meri galtiyan dono par. AI detail video ka prompt Biology ke liye alag (keywords, diagram, mnemonic).
 - **v1.34** — 🎬 **Video solution** (har sawaal ke jawab ke baad): blackboard player, steps ek-ek karke likhte hue (wipe animation) + awaaz — Sawaal → Diya hai → Formula → Value daalo → Jawab → Sahi option → 📌 NCERT point; ⏮ ⏸/▶ ⏭, speed 0.75/1/1.25×, progress bar. Offline, app ke `sol` steps se. ✨ **AI detail video**: Gemini (Doubt poocho key) 7-10 scene ka script banata hai (concept, kyun, steps, galat options kyun galat, common mistake, NEET tip), usi player mein; `neet_vid` mein cache (40).
 - **v1.33** — Home par ♾️ Unlimited practice tile bhi green highlight (Doubt poocho / Chapter scan jaisa).
