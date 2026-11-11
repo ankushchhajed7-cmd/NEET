@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.32';
+const APP_VER = 'v1.33';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -514,7 +514,7 @@ SCREENS.home = function () {
     <div class="qa" onclick="go('tests')"><div class="e">🏆</div><div class="n">NEET Mock</div><div class="s">180 Q · 180 min</div></div>
     <div class="qa" onclick="go('mistakes')"><div class="e">🎯</div><div class="n">Meri galtiyan</div><div class="s">${mk} Qs · ${weakPoints().length} points</div></div>
     <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>
-    <div class="tile" style="margin-top:9px;border-color:var(--gold)" onclick="go('unlimited')"><div class="ic">♾️</div><div class="g1"><div class="n">Unlimited practice</div>
+    <div class="tile glow" style="margin-top:9px" onclick="go('unlimited')"><div class="ic">♾️</div><div class="g1"><div class="n">Unlimited practice</div>
       <div class="s">Easy · Medium · Hard — jab tak padho, sawaal aate rahenge</div></div><div class="ch">›</div></div>
     <div class="tile glow" style="margin-top:9px" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
       <div class="s">Koi bhi sawaal — NCERT ke hisaab se samjhaya jayega</div></div><div class="ch">›</div></div>
