@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.34';
+const APP_VER = 'v1.35';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -215,7 +215,7 @@ function screenMistakes() {
     const n = pointGids(w.c, w.p.id).length;
     h += `<div class="pt-row"><div class="t">${w.p.topic ? `<div style="font-family:Montserrat;font-weight:800;font-size:12px;color:var(--gold)">${esc(w.p.topic)}</div>` : ''}
       <div class="clamp3">${w.p.t}</div><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-      <span class="tag bad">✗ ${w.n} baar galat</span><span class="tag g" style="cursor:pointer" onclick="startWeakPoint('${w.c.id}','${w.p.id}')">▶ Revision (${n} Q)</span></div></div></div>`;
+      <span class="tag bad">✗ ${w.n} baar galat</span><span class="tag g" style="cursor:pointer" onclick="startWeakPoint('${w.c.id}','${w.p.id}')">▶ Revision (${n} Q)</span><span class="tag" style="cursor:pointer" onclick="vidPoint('${w.c.id}','${w.p.id}')">🎬 Video</span></div></div></div>`;
   });
   return h + '</div>';
 };
@@ -627,6 +627,7 @@ SCREENS.chapter = function () {
     h += `<div class="pt-row"><div class="chk ${rv[p.id] ? 'on' : ''}" onclick="toggleRev('${c.id}','${p.id}')">✓</div>
       <div class="t">${p.t}<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
       ${weak[p.id] ? `<span class="tag bad">⚠️ Weak · ${weak[p.id]}✗</span>` : ''}<span class="tag">${qs.length} Q</span>${acc == null ? '' : `<span class="tag ${acc >= .7 ? 'ok' : 'bad'}">${pct(acc)}</span>`}
+      <span class="tag" style="cursor:pointer" onclick="vidPoint('${c.id}','${p.id}')">🎬 Video</span><span class="tag" style="cursor:pointer" onclick="vidAIPoint('${c.id}','${p.id}')">✨ AI lesson</span>
       ${qs.length ? `<span class="tag g" style="cursor:pointer" onclick="startList(${JSON.stringify(qs.map(q => gid(c, q))).replace(/"/g, "'")},'Point ${i + 1}','practice')">▶ Practice</span>` : ''}</div></div></div>`;
   });
   h += '</div>';
@@ -1263,6 +1264,21 @@ const SOL_LBL = { given: ['Diya hai', 'Pehle dekhte hain sawaal mein kya diya ha
 function vidFramesBasic(g) {
   const e = QIDX[g], q = e.q, c = e.c, v = V(q), opts = optsOf(q), fr = [];
   fr.push({ tag: '❓ Sawaal', html: qHTML(q), say: 'Chalo ' + callName() + ', is sawaal ko step by step samjhte hain. ' + plain(qHTML(q)) });
+  const RN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+  if (q.type === 'ar') {
+    fr.push({ tag: 'Assertion (A)', html: v.ar.A, say: 'Pehle Assertion padhte hain. ' + plain(v.ar.A) });
+    fr.push({ tag: 'Reason (R)', html: v.ar.R, say: 'Ab Reason dekho. ' + plain(v.ar.R) });
+  } else if (q.type === 'st') {
+    v.st.forEach((x, k) => fr.push({ tag: 'Statement ' + RN[k], html: x, say: 'Statement ' + (k + 1) + '. ' + plain(x) }));
+  } else if (v.s && v.s.length) {
+    v.s.forEach((x, k) => fr.push({ tag: 'Statement ' + RN[k], html: x, say: 'Statement ' + (k + 1) + '. ' + plain(x) }));
+  } else if (q.type === 'match' && v.match) {
+    const code = plain(opts[q.a]), m = v.match;
+    (code.match(/[A-H]\s*-\s*[IVX]+/g) || []).forEach(function (pr) {
+      const L = pr.split('-')[0].trim(), R = pr.split('-')[1].trim(), li = 'ABCDEFGH'.indexOf(L), ri = RN.indexOf(R);
+      if (m.l[li] != null && m.r[ri] != null) fr.push({ tag: 'Match ' + L + ' → ' + R, html: m.l[li] + ' <b style="color:#F4C95D">→</b> ' + m.r[ri], say: plain(m.l[li]) + ', iska match hai ' + plain(m.r[ri]) });
+    });
+  }
   (v.sol || []).forEach(function (s, k) {
     const m = plain(s).match(/^(Given|Formula|Substitution|Answer)\s*:\s*(.*)$/i);
     const L = m ? SOL_LBL[m[1].toLowerCase()] : ['Step ' + (k + 1), k ? 'Ab agla step. ' : 'Pehla step. '];
@@ -1275,9 +1291,22 @@ function vidFramesBasic(g) {
   if (pt) fr.push({ tag: '📌 Yaad rakho', html: pt, say: 'Ye NCERT ka point yaad rakhna. ' + plain(pt).slice(0, 320) });
   return fr;
 }
+/* 📌 NCERT point ka video lesson — point ki lines ek-ek karke + figure */
+function vidFramesPoint(c, p) {
+  const fr = [{ tag: '📖 ' + subjOf(c.subj).name + ' · ' + esc(c.title), html: '<b>' + esc(p.topic || 'NCERT point') + '</b>', say: 'Chalo ' + callName() + ', aaj ' + plain(p.topic || c.title) + ' samjhte hain.' }];
+  const sents = plain(p.t).split(/(?<=[.;])\s+(?=[A-Z(0-9a-z])/).filter(x => x.trim().length > 2);
+  const per = sents.length <= 4 ? 1 : 2;
+  for (let i = 0; i < sents.length; i += per) { const t = sents.slice(i, i + per).join(' '); fr.push({ tag: 'NCERT · ' + (i / per + 1), html: esc(t), say: t }); }
+  const withImg = (c.qs || []).find(q => (q.p || []).indexOf(p.id) >= 0 && q.img);
+  if (withImg) fr.push({ tag: '🖼 Figure', html: withImg.img, say: 'Ye figure dhyan se dekho, NEET mein iske labels poochhe jaate hain.' });
+  const n = (c.qs || []).filter(q => (q.p || []).indexOf(p.id) >= 0).length;
+  fr.push({ tag: '✅ Ab practice', html: 'Is point ke ' + n + ' sawaal practice karo', say: 'Bahut badhiya. Ab is point ke sawaal practice karo.' });
+  return fr;
+}
+function vidPoint(cid, pid) { const c = chOf(cid), p = ptOf(c, pid); if (p) vidOpen(vidFramesPoint(c, p), '🎬 ' + (p.topic || 'Point video'), null, false, cid + '|' + pid); }
 function vidOpen(frames, title, g, ai) {
   vidStop();
-  VID = { frames: frames, k: 0, playing: true, title: title, g: g, ai: !!ai, tok: 0 };
+  VID = { frames: frames, k: 0, playing: true, title: title, g: g, ai: !!ai, tok: 0, pt: arguments[4] || null };
   let el = document.getElementById('vid');
   if (!el) { el = document.createElement('div'); el.id = 'vid'; document.body.appendChild(el); }
   document.body.style.overflow = 'hidden';
@@ -1297,7 +1326,9 @@ function vidShow() {
       <button class="btn sm" style="width:auto;padding:12px 26px" onclick="vidToggle()">${V0.playing ? '⏸ Pause' : '▶ Play'}</button>
       <button class="iconbtn" onclick="vidGo(${k + 1})" ${k < V0.frames.length - 1 ? '' : 'disabled'}>⏭</button>
       <button class="iconbtn" style="width:auto;padding:0 10px;font-size:12.5px;font-weight:800" onclick="vidSpeed()">${{ slow: '0.75×', normal: '1×', fast: '1.25×' }[settings().vspeed] || '1×'}</button></div>
-    ${k === V0.frames.length - 1 && !V0.playing && !V0.ai && V0.g ? `<button class="btn glow" style="margin-top:10px" onclick="vidAI('${jsq(V0.g)}')">✨ AI se aur detail video</button>` : ''}</div>`;
+    ${k === V0.frames.length - 1 && !V0.playing && !V0.ai && V0.g ? `<button class="btn glow" style="margin-top:10px" onclick="vidAI('${jsq(V0.g)}')">✨ AI se aur detail video</button>` : ''}
+    ${k === V0.frames.length - 1 && !V0.playing && V0.pt ? `<div class="row" style="margin-top:10px">${V0.ai ? '' : `<button class="btn gh sm glow" onclick="vidAIPoint('${V0.pt.split('|')[0]}','${V0.pt.split('|')[1]}')">✨ AI lesson</button>`}
+      <button class="btn sm" onclick="vidClose();startWeakPoint('${V0.pt.split('|')[0]}','${V0.pt.split('|')[1]}')">▶ Practice</button></div>` : ''}</div>`;
   const b = document.getElementById('vboard'); if (b) b.scrollTop = b.scrollHeight;
   if (V0.playing) {
     const tok = ++V0.tok;
@@ -1326,6 +1357,34 @@ function vidSpeed() { const s = settings(), o = ['slow', 'normal', 'fast']; s.vs
 function vidStop() { if (VID) VID.tok++; VID = null; shutup(); }
 function vidClose() { vidStop(); const el = document.getElementById('vid'); if (el) el.remove(); document.body.style.overflow = ''; }
 
+/* ✨ AI lesson — ek NCERT point par mentor video */
+async function vidAIPoint(cid, pid) {
+  const c = chOf(cid), p = c && ptOf(c, pid); if (!p) return;
+  if (!askKey()) { vidClose(); if (confirm('AI lesson ke liye Doubt poocho wali free Gemini key chahiye. Abhi daalein?')) openAsk(); return; }
+  const key = 'pt:' + cid + '|' + pid, cache = load('neet_vid', {}), title = '✨ ' + (p.topic || 'AI lesson');
+  if (cache[key]) return vidOpen(cache[key], title, null, true, cid + '|' + pid);
+  vidOpen([{ tag: '✨ AI', html: '<div class="muted">Mentor lesson taiyaar kar raha hai… 🎬<br>10-20 second lagenge</div>', say: 'Ek second, lesson taiyaar ho raha hai.' }], title, null, true, cid + '|' + pid);
+  const prompt = 'You are a friendly NEET (UG) mentor making a short whiteboard video lesson for a student (' + callName() + ').\n' +
+    'Subject: ' + subjOf(c.subj).name + ' · Class ' + c.cls + ' · Chapter: ' + c.title + (p.topic ? ' · Topic: ' + p.topic : '') + '\n' +
+    'NCERT text: """' + plain(p.t) + '"""\n\n' +
+    'Teach ONLY this NCERT text in 7-10 scenes: what it is about, each fact explained simply with a real-life example, key terms with meaning, a picture-in-words of any structure / diagram / process (labels, sequence) or the formula with units, comparisons or differences if any, a mnemonic, the traps NEET sets on this point, and one quick check question with its answer.\n' +
+    'Each scene: "title" (2-4 words), "board" (what is written on the board: keywords, a formula, a flow like A → B → C, max 120 characters), "say" (what the mentor speaks: 1-3 short sentences in simple Hinglish in Roman script, scientific terms in English, no markdown).\n' +
+    'Every fact must match the NCERT text. Return ONLY a JSON array: [{"title": "...", "board": "...", "say": "..."}]';
+  try {
+    const fr = vidAIFrames(await gemJSON(prompt));
+    cache[key] = fr; const ks = Object.keys(cache); while (ks.length > 40) delete cache[ks.shift()];
+    save('neet_vid', cache);
+    if (VID && VID.ai && VID.pt === cid + '|' + pid) vidOpen(fr, title, null, true, cid + '|' + pid);
+  } catch (err) {
+    if (VID && VID.ai && VID.pt === cid + '|' + pid) vidOpen([{ tag: '😔', html: 'AI lesson abhi nahi ban paaya. Internet ya key check karke dobara try karo.<div class="vsub">' + escA(err.message || '') + '</div>', say: 'Abhi lesson nahi ban paaya.' }], title, null, true, cid + '|' + pid);
+  }
+}
+function vidAIFrames(arr) {
+  const fr = (Array.isArray(arr) ? arr : []).filter(x => x && typeof x.say === 'string' && x.say.trim())
+    .slice(0, 12).map(x => ({ tag: escA(String(x.title || 'Step').slice(0, 40)), html: escA(String(x.board || '').slice(0, 220)) || '—', say: String(x.say).slice(0, 500) }));
+  if (fr.length < 3) throw new Error('Script adhoora aaya');
+  return fr;
+}
 /* ✨ AI detail video — script Gemini se, phone mein cache */
 async function vidAI(g) {
   if (!g && RUN) g = RUN.items[RUN.i];
@@ -1341,7 +1400,9 @@ async function vidAI(g) {
     '\nCorrect option: (' + (q.a + 1) + ') ' + plain(opts[q.a]) + '\nBook explanation: ' + plain(v.e) +
     ((v.sol || []).length ? '\nBook solution steps: ' + v.sol.map(plain).join(' | ') : '') +
     ((q.p || []).length ? '\nNCERT point: ' + plain(pointText(c, q.p[0])) : '') +
-    '\n\nWrite 7-10 scenes in this order: the core concept in simple words, what is given / what is asked, why this formula or idea applies, each solving step (with numbers and units), the final answer with the correct option, why the tempting wrong options are wrong, a common mistake, and one NEET tip.\n' +
+    (c.subj === 'bot' || c.subj === 'zoo'
+      ? '\n\nWrite 7-10 scenes in this order: the core concept in simple words, the key NCERT facts and keywords, a picture-in-words of the related structure/diagram/process (labels, sequence), how to reach the answer (for statement / assertion / match questions go through each statement or pair), the final answer with the correct option, why the tempting wrong options are wrong, a mnemonic or memory trick, and one NEET tip.\n'
+      : '\n\nWrite 7-10 scenes in this order: the core concept in simple words, what is given / what is asked, why this formula or idea applies, each solving step (with numbers and units), the final answer with the correct option, why the tempting wrong options are wrong, a common mistake, and one NEET tip.\n') +
     'Each scene: "title" (2-4 words), "board" (what is written on the board: a formula, numbers or one short line, max 120 characters, use symbols like × ² ⁻¹ → where useful), "say" (what the mentor speaks: 1-3 short sentences in simple Hinglish in Roman script, scientific terms in English, no markdown).\n' +
     'Stay strictly consistent with the given correct answer and NCERT. Return ONLY a JSON array: [{"title": "...", "board": "...", "say": "..."}]';
   try {
