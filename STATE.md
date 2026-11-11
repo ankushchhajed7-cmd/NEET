@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.29'`
-- `sw.js` → `CACHE = 'neet-v27'`
+- `app.js` → `APP_VER = 'v1.30'`
+- `sw.js` → `CACHE = 'neet-v31'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -12,11 +12,12 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 | Botany | Ch 1, 2, 3, 5, 6, 8, 10, 11, 12, 13 | Ch 1, 4, 5, 8, 11, 12, 13 |
 | Zoology | Ch 4, 7, 9, 14–19 (14–19 grouped as "Human Physiology") | Ch 2, 3, 6, 7, 9, 10 |
 | Physics | Ch 1–14 (Class XI complete) | Ch 1–14 (Class XII complete) |
-| Chemistry | — | — |
+| Chemistry | Ch 1, 2, 5, 6, 7 (Physical) | Ch 1, 2, 3 (Physical) |
 
-Total (v1.29): 60 chapters · 3598 points · 8036 questions.
+Total (v1.30): 68 chapters · 3989 points · 9073 questions.
 
 ## Version history (recent)
+- **v1.30** — Physical Chemistry (`data/chem/`): XI Ch 1 *Some Basic Concepts of Chemistry* (46 points, 114 questions, 40 numericals), Ch 2 *Structure of Atom* (60, 134, 35), Ch 5 *Thermodynamics* (48, 111, 28), Ch 6 *Equilibrium* (53, 131, 39), Ch 7 *Redox Reactions* (35, 102, 21); XII Ch 1 *Solutions* (42, 123, 30), Ch 2 *Electrochemistry* (58, 179, 48), Ch 3 *Chemical Kinetics* (49, 143, 48). Total 391 points, 1037 questions, 289 numericals, 57 graph/diagram questions. Covers every section, figure, table, example, intext question, summary and exercises.
 - **v1.29** — Physics XII Ch 2 *Electrostatic Potential and Capacitance* (49 points, 111 questions, 29 numericals), Ch 4 *Moving Charges and Magnetism* (44 points, 105 questions, 26 numericals), Ch 12 *Atoms* (31 points, 86 questions, 18 numericals). Physics XI and XII now complete.
 - **v1.28** — Physics XII Ch 1, 3, 5, 6, 7, 8, 9, 10, 11, 13, 14 (`data/phy/12-xx.js`): 451 points, 1203 questions, 273 numericals with step-by-step solutions, 140 graph/diagram questions (inline SVG). Covers every section, figure, table, example, summary, points to ponder and exercises. Ch 2, 4 and 12 PDFs not received yet.
 - **v1.27** — Physics XI Ch 4 *Laws of Motion* (`data/phy/11-04.js`: 60 points, 133 questions, 44 numericals, 19 graph/diagram) and Ch 10 *Thermal Properties of Matter* (`data/phy/11-10.js`: 61 points, 143 questions, 39 numericals, 18 graph/diagram). Physics Class XI now complete.
@@ -38,8 +39,8 @@ Total (v1.29): 60 chapters · 3598 points · 8036 questions.
 - Match options use app codes `A-III, B-I, ...` (app labels List I as A–D, List II as I–IV).
 - Correct answers spread over all four options; A-R and Statement I/II use all four answer values.
 - Facts only from NCERT text, figures, boxes and summary.
-- Physics chapters: NCERT points + Points to Ponder + key Exercises; NEET-style numericals (`type: 'num'`, `sol: [Given, Formula, Substitution, Answer]`), graph/diagram questions via inline SVG in `img` (currentColor + gold #D9A520, no single quotes), plus A-R, Statement, Match, multi-concept questions; easy/medium/hard mix.
+- Physics and Chemistry chapters: NCERT points + Points to Ponder + key Exercises; NEET-style numericals (`type: 'num'`, `sol: [Given, Formula, Substitution, Answer]`), graph/diagram questions via inline SVG in `img` (currentColor + gold #D9A520, no single quotes), plus A-R, Statement, Match, multi-concept questions; easy/medium/hard mix.
 
 ## Pending
 - With Zoology XII Ch 2, all 19 Class XI and 13 Class XII NCERT Biology chapters (current numbering) are in the app.
-- Physics: Class XI and XII complete (Ch 1–14 each). Chemistry not started.
+- Physics: Class XI and XII complete (Ch 1–14 each). Chemistry: Physical chemistry done (XI Ch 1, 2, 5, 6, 7; XII Ch 1, 2, 3). Inorganic and Organic chapters pending.
