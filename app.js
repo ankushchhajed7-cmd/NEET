@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.33';
+const APP_VER = 'v1.34';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -425,7 +425,7 @@ let RUN = null;        // current practice/test/review session
 let TICK = null;
 let deferredInstall = null;
 
-function go(s) { shutup(); state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
+function go(s) { if (VID) vidClose(); shutup(); state.screen = s; state.sheet = null; window.scrollTo(0, 0); render(); }
 function toast(msg) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
@@ -783,7 +783,7 @@ function importData(f) {
 function resetAll() {
   if (!confirm('Saari progress, galtiyan, bookmarks aur test history mit jayegi. Pakka?')) return;
   // naam/settings aur Gemini key bachi rahe
-  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13', 'neet_aiq', 'neet_unl_ai'];
+  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13', 'neet_aiq', 'neet_unl_ai', 'neet_vid'];
   Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && keep.indexOf(k) < 0).forEach(k => localStorage.removeItem(k));
   go('home');
 }
@@ -1248,6 +1248,115 @@ SCREENS.unlimited = function () {
   return h;
 };
 
+/* ================= 🎬 Video solution — board par step-by-step likhna + awaaz =================
+   (1) app ke steps se (Given → Formula → Substitution → Answer), offline, free
+   (2) ✨ AI detail video: Gemini script banata hai (concept, kyun, steps, galti, NEET tip) — wahi player */
+let VID = null;
+function speakable(t) {
+  return String(t || '').replace(/⁻¹/g, ' inverse ').replace(/⁻²/g, ' inverse square ').replace(/²/g, ' square ').replace(/³/g, ' cube ')
+    .replace(/×/g, ' guna ').replace(/÷/g, ' divided by ').replace(/=/g, ' barabar ').replace(/−/g, ' minus ').replace(/√/g, ' root ')
+    .replace(/½/g, ' half ').replace(/°/g, ' degree ').replace(/→/g, ' se ').replace(/≈/g, ' lagbhag ').replace(/Δ/g, ' delta ')
+    .replace(/\s+/g, ' ').trim();
+}
+const SOL_LBL = { given: ['Diya hai', 'Pehle dekhte hain sawaal mein kya diya hai. '], formula: ['Formula', 'Ab kaunsa formula lagega, wo dekhte hain. '],
+  substitution: ['Value daalo', 'Ab formula mein values daalte hain. '], answer: ['Jawab', 'To jawab aata hai. '] };
+function vidFramesBasic(g) {
+  const e = QIDX[g], q = e.q, c = e.c, v = V(q), opts = optsOf(q), fr = [];
+  fr.push({ tag: '❓ Sawaal', html: qHTML(q), say: 'Chalo ' + callName() + ', is sawaal ko step by step samjhte hain. ' + plain(qHTML(q)) });
+  (v.sol || []).forEach(function (s, k) {
+    const m = plain(s).match(/^(Given|Formula|Substitution|Answer)\s*:\s*(.*)$/i);
+    const L = m ? SOL_LBL[m[1].toLowerCase()] : ['Step ' + (k + 1), k ? 'Ab agla step. ' : 'Pehla step. '];
+    fr.push({ tag: L[0], html: m ? s.replace(/^\s*(Given|Formula|Substitution|Answer)\s*:\s*/i, '') : s, say: L[1] + (m ? m[2] : plain(s)) });
+  });
+  if (!(v.sol || []).length && v.e) fr.push({ tag: '💡 Samjhaav', html: v.e, say: 'Ab samjhte hain kyun. ' + plain(v.e) });
+  fr.push({ tag: '✓ Sahi option', html: '(' + (q.a + 1) + ') ' + opts[q.a] + ((v.sol || []).length && v.e ? '<div class="vsub">' + v.e + '</div>' : ''),
+    say: 'To sahi option hai number ' + (q.a + 1) + '. ' + plain(opts[q.a]) + '. ' + ((v.sol || []).length ? plain(v.e) : '') });
+  const pt = (q.p || []).map(p => pointText(c, p)).filter(Boolean)[0];
+  if (pt) fr.push({ tag: '📌 Yaad rakho', html: pt, say: 'Ye NCERT ka point yaad rakhna. ' + plain(pt).slice(0, 320) });
+  return fr;
+}
+function vidOpen(frames, title, g, ai) {
+  vidStop();
+  VID = { frames: frames, k: 0, playing: true, title: title, g: g, ai: !!ai, tok: 0 };
+  let el = document.getElementById('vid');
+  if (!el) { el = document.createElement('div'); el.id = 'vid'; document.body.appendChild(el); }
+  document.body.style.overflow = 'hidden';
+  ttsUnlock(); vidShow();
+}
+function vidPlay(g) { if (!g && RUN) g = RUN.items[RUN.i]; if (!QIDX[g]) return; vidOpen(vidFramesBasic(g), '🎬 Video solution', g, false); }
+function vidEst(t) { const r = voiceRate(); return Math.max(1800, (String(t).length / (13.5 * r)) * 1000 + 900); }
+function vidShow() {
+  const el = document.getElementById('vid'); if (!el || !VID) return;
+  const V0 = VID, k = V0.k, f = V0.frames[k], dur = Math.min(6, vidEst(f.say) / 1000 * 0.7);
+  el.innerHTML = `<div class="vwrap"><div class="vtop"><button class="iconbtn" onclick="vidClose()">✕</button>
+      <div class="mont" style="flex:1;text-align:center;font-weight:800;font-size:14px">${esc(V0.title)}</div><span class="tag g">${k + 1}/${V0.frames.length}</span></div>
+    <div class="vbar">${V0.frames.map((_, i) => `<i class="${i < k ? 'd' : i === k ? 'c' : ''}" onclick="vidGo(${i})"></i>`).join('')}</div>
+    <div class="vboard" id="vboard">` + V0.frames.slice(0, k + 1).map((x, i) =>
+      `<div class="vline ${i === k ? 'cur' + (V0.playing ? ' anim' : '') : ''}" ${i === k && V0.playing ? `style="animation-duration:${dur.toFixed(1)}s"` : ''}><div class="vtag">${x.tag}</div><div class="vtx">${x.html}</div></div>`).join('') + `</div>
+    <div class="vctl"><button class="iconbtn" onclick="vidGo(${k - 1})" ${k ? '' : 'disabled'}>⏮</button>
+      <button class="btn sm" style="width:auto;padding:12px 26px" onclick="vidToggle()">${V0.playing ? '⏸ Pause' : '▶ Play'}</button>
+      <button class="iconbtn" onclick="vidGo(${k + 1})" ${k < V0.frames.length - 1 ? '' : 'disabled'}>⏭</button>
+      <button class="iconbtn" style="width:auto;padding:0 10px;font-size:12.5px;font-weight:800" onclick="vidSpeed()">${{ slow: '0.75×', normal: '1×', fast: '1.25×' }[settings().vspeed] || '1×'}</button></div>
+    ${k === V0.frames.length - 1 && !V0.playing && !V0.ai && V0.g ? `<button class="btn glow" style="margin-top:10px" onclick="vidAI('${jsq(V0.g)}')">✨ AI se aur detail video</button>` : ''}</div>`;
+  const b = document.getElementById('vboard'); if (b) b.scrollTop = b.scrollHeight;
+  if (V0.playing) {
+    const tok = ++V0.tok;
+    speak(speakable(f.say), 'hi');
+    vidWait(tok, vidEst(f.say), function () {
+      if (!VID || VID !== V0 || V0.tok !== tok || !V0.playing) return;
+      if (V0.k < V0.frames.length - 1) { V0.k++; setTimeout(vidShow, 450); } else { V0.playing = false; vidShow(); }
+    });
+  }
+}
+/* bolna khatam hone tak ruko (browser TTS par asli, baaki par andaaza) */
+function vidWait(tok, est, cb) {
+  const real = HAS_TTS && !hasBridge() && !hasAnv(), t0 = Date.now();
+  (function tick() {
+    if (!VID || VID.tok !== tok) return;
+    const el = Date.now() - t0;
+    if (real) { let sp = false; try { sp = speechSynthesis.speaking; } catch (e) {}
+      if ((el > 900 && !sp) || el > est * 2.5 + 4000) return cb(); }
+    else if (el > est) return cb();
+    setTimeout(tick, 250);
+  })();
+}
+function vidGo(i) { if (!VID || i < 0 || i >= VID.frames.length) return; shutup(); VID.tok++; VID.k = i; VID.playing = true; vidShow(); }
+function vidToggle() { if (!VID) return; VID.tok++; shutup(); VID.playing = !VID.playing; if (VID.playing && VID.k === VID.frames.length - 1 && VID.done) VID.k = 0; VID.done = !VID.playing && VID.k === VID.frames.length - 1; vidShow(); }
+function vidSpeed() { const s = settings(), o = ['slow', 'normal', 'fast']; s.vspeed = o[(o.indexOf(s.vspeed) + 1) % 3]; save('neet_set', s); if (VID) { VID.tok++; shutup(); vidShow(); } }
+function vidStop() { if (VID) VID.tok++; VID = null; shutup(); }
+function vidClose() { vidStop(); const el = document.getElementById('vid'); if (el) el.remove(); document.body.style.overflow = ''; }
+
+/* ✨ AI detail video — script Gemini se, phone mein cache */
+async function vidAI(g) {
+  if (!g && RUN) g = RUN.items[RUN.i];
+  const e = QIDX[g]; if (!e) return;
+  if (!askKey()) { vidClose(); if (confirm('AI video ke liye Doubt poocho wali free Gemini key chahiye. Abhi daalein?')) openAsk(true); return; }
+  const cache = load('neet_vid', {});
+  if (cache[g]) return vidOpen(cache[g], '✨ AI detail video', g, true);
+  vidOpen([{ tag: '✨ AI', html: '<div class="muted">Mentor video taiyaar kar raha hai… 🎬<br>10-20 second lagenge</div>', say: 'Ek second, video taiyaar ho raha hai.' }], '✨ AI detail video', g, true);
+  const q = e.q, c = e.c, v = V(q), opts = optsOf(q);
+  const prompt = 'You are a friendly NEET (UG) mentor making a short whiteboard video lesson for a student (' + callName() + ').\n' +
+    'Subject: ' + subjOf(c.subj).name + ' · Class ' + c.cls + ' · Chapter: ' + c.title + '\n' +
+    'Question: ' + plain(qHTML(q)) + '\nOptions: ' + opts.map((o, i) => '(' + (i + 1) + ') ' + plain(o)).join('  ') +
+    '\nCorrect option: (' + (q.a + 1) + ') ' + plain(opts[q.a]) + '\nBook explanation: ' + plain(v.e) +
+    ((v.sol || []).length ? '\nBook solution steps: ' + v.sol.map(plain).join(' | ') : '') +
+    ((q.p || []).length ? '\nNCERT point: ' + plain(pointText(c, q.p[0])) : '') +
+    '\n\nWrite 7-10 scenes in this order: the core concept in simple words, what is given / what is asked, why this formula or idea applies, each solving step (with numbers and units), the final answer with the correct option, why the tempting wrong options are wrong, a common mistake, and one NEET tip.\n' +
+    'Each scene: "title" (2-4 words), "board" (what is written on the board: a formula, numbers or one short line, max 120 characters, use symbols like × ² ⁻¹ → where useful), "say" (what the mentor speaks: 1-3 short sentences in simple Hinglish in Roman script, scientific terms in English, no markdown).\n' +
+    'Stay strictly consistent with the given correct answer and NCERT. Return ONLY a JSON array: [{"title": "...", "board": "...", "say": "..."}]';
+  try {
+    const arr = await gemJSON(prompt);
+    const fr = (Array.isArray(arr) ? arr : []).filter(x => x && typeof x.say === 'string' && x.say.trim())
+      .slice(0, 12).map(x => ({ tag: escA(String(x.title || 'Step').slice(0, 40)), html: escA(String(x.board || '').slice(0, 220)) || '—', say: String(x.say).slice(0, 500) }));
+    if (fr.length < 3) throw new Error('Script adhoora aaya');
+    cache[g] = fr; const ks = Object.keys(cache); while (ks.length > 40) delete cache[ks.shift()];
+    save('neet_vid', cache);
+    if (VID && VID.g === g && VID.ai) vidOpen(fr, '✨ AI detail video', g, true);
+  } catch (err) {
+    if (VID && VID.g === g && VID.ai) vidOpen([{ tag: '😔', html: 'AI video abhi nahi ban paaya. Internet ya key check karke dobara try karo.<div class="vsub">' + escA(err.message || '') + '</div>', say: 'Abhi video nahi ban paaya. Thodi der baad try karna.' }], '✨ AI detail video', g, true);
+  }
+}
+
 /* ================= sessions (practice / test / review) ================= */
 /* RUN = {mode, title, items:[gid], i, ans:[idx|null], rev:[bool], done:[bool](practice), tq:[sec], start, end, ret} */
 function newRun(items, title, mode) {
@@ -1380,6 +1489,8 @@ SCREENS.run = function () {
     h += `<div class="expl" id="expl"><div class="h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">${head}<button class="suno" onclick="readExpl()">🔊 Suno</button></div>${v.e || ''}${solHTML(v)}
       ${pts.length ? '<div class="pt">📌 <b>Point:</b> ' + pts.join('<br>📌 ') + '</div>' : ''}
       <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div>
+      <div class="row" style="margin-top:10px"><button class="btn sm" onclick="vidPlay()">🎬 Video solution</button>
+      <button class="btn gh sm" onclick="vidAI()">✨ AI detail video</button></div>
       <button class="btn gh sm glow" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
   }
 
