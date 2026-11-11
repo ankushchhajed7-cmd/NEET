@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.31'`
-- `sw.js` → `CACHE = 'neet-v32'`
+- `app.js` → `APP_VER = 'v1.32'`
+- `sw.js` → `CACHE = 'neet-v33'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.30): 68 chapters · 3989 points · 9073 questions.
 
 ## Version history (recent)
+- **v1.32** — (1) **Galat jawab → revision:** practice mein galat jawab par usi point ke 2 sawaal turant agle aate hain (🔁 Revision tag); point kam sawaal wala ho to same topic / paas ke points se. Galat point `neet_weak` mein; us point ke 2 sahi jawab (aur koi sawaal galat na bacha) par hatta hai. **🎯 Meri galtiyan** screen: subject filter, weak points list (chapter-wise, kitni baar galat, ▶ Revision), "Weak points ki revision" mix, "Sirf galat sawaal". Chapter ke point par ⚠️ Weak tag. Test result par "🔁 Galat topics ki revision". (2) **♾️ Unlimited practice:** Easy / Medium / Hard alag (q.lvl), subject filter; bank (~9000) se pehle galat, phir naye, phir kam practice wale — kabhi khatam nahi (10-10 karke judte hain). Gemini key ho to har 3rd sawaal ✨ AI: NCERT point text se 4 MCQ (weak points par 50%), validate karke `neet_aiq` mein save (max 600) aur QIDX mein jud jaate hain. Revision bhi usi level ki. ✕ par aaj ka summary.
 - **v1.31** — 📷 *Chapter scan karo* (Home): NCERT page ke 1–4 screenshot/photo do (+ optional note ki kya samajh nahi aaya). Same Gemini key (Doubt poocho wali) se mentor-style Hinglish samjhaav live stream hota hai: overview, step-by-step, figure/table, formula + numericals, NEET points, trick, common galtiyan, 5 check-up sawaal. Photo phone par hi 1600px JPEG banti hai. 🔊 Suno aur 💬 'Aage doubt poocho' (samjhaav chat mein chala jaata hai). Last samjhaav `neet_scan` mein save.
 - **v1.30** — Physical Chemistry (`data/chem/`): XI Ch 1 *Some Basic Concepts of Chemistry* (46 points, 114 questions, 40 numericals), Ch 2 *Structure of Atom* (60, 134, 35), Ch 5 *Thermodynamics* (48, 111, 28), Ch 6 *Equilibrium* (53, 131, 39), Ch 7 *Redox Reactions* (35, 102, 21); XII Ch 1 *Solutions* (42, 123, 30), Ch 2 *Electrochemistry* (58, 179, 48), Ch 3 *Chemical Kinetics* (49, 143, 48). Total 391 points, 1037 questions, 289 numericals, 57 graph/diagram questions. Covers every section, figure, table, example, intext question, summary and exercises.
 - **v1.29** — Physics XII Ch 2 *Electrostatic Potential and Capacitance* (49 points, 111 questions, 29 numericals), Ch 4 *Moving Charges and Magnetism* (44 points, 105 questions, 26 numericals), Ch 12 *Atoms* (31 points, 86 questions, 18 numericals). Physics XI and XII now complete.
