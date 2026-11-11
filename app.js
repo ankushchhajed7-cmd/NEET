@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.31';
+const APP_VER = 'v1.32';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -34,6 +34,19 @@ function chOf(id) { return CHS.find(c => c.id === id); }
 function subjOf(id) { return SUBJ.find(s => s.id === id); }
 function chaptersOf(sid) { return CHS.filter(c => c.subj === sid); }
 function allGids(chs) { const out = []; chs.forEach(c => (c.qs || []).forEach(q => out.push(gid(c, q)))); return out; }
+/* ---- ✨ AI se bane sawaal (Unlimited mode) — phone mein save, QIDX mein jud jaate hain ---- */
+let AI_BY = {};   // 'cid|pid' -> [gid]
+function aiStore() { return load('neet_aiq', []); }
+function aiGidsFor(cid, pid) { return AI_BY[cid + '|' + pid] || []; }
+function aiRegister(x) {
+  const c = CHS.find(ch => ch.id === x.cid); if (!c) return null;
+  const q = { id: 'ai' + x.id, type: 'mcq', lvl: x.lvl, q: escA(x.q), o: x.o.map(escA), a: x.a, e: escA(x.e), p: [x.pid], tag: '✨ AI', fixed: true };
+  const g = c.id + '|' + q.id; QIDX[g] = { c: c, q: q };
+  const k = c.id + '|' + x.pid; (AI_BY[k] = AI_BY[k] || []).push(g);
+  return g;
+}
+function escA(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+aiStore().forEach(aiRegister);
 
 /* ================= settings / stats ================= */
 /* naam na badla ho to default 'Yukti' — More → Naam se koi bhi badal sakta hai */
@@ -56,6 +69,7 @@ function qstats() { return load('neet_qs', {}); }
 function recordAnswer(g, ok) {
   const s = qstats(); const r = s[g] || [0, 0, 0];
   r[0]++; if (ok) r[1]++; r[2] = ok ? 1 : 0; s[g] = r; save('neet_qs', s);
+  trackWeak(g, ok);
   bumpDay();
 }
 function dkey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
@@ -96,6 +110,115 @@ function toggleRev(cid, pid) {
   if (r[cid][pid]) delete r[cid][pid]; else r[cid][pid] = 1;
   save('neet_rev', r); render();
 }
+/* ---- weak points: galat jawab ka point "Meri galtiyan" mein; 2 sahi (aur point ka koi sawaal galat nahi) par hat jaata hai ---- */
+function weakStore() { return load('neet_weak', {}); }
+function ptOf(c, pid) { return (c.points || []).find(p => p.id === pid); }
+function pointGids(c, pid) { return (c.qs || []).filter(q => (q.p || []).indexOf(pid) >= 0).map(q => gid(c, q)).concat(aiGidsFor(c.id, pid)); }
+function pointHasWrong(c, pid, s) { return pointGids(c, pid).some(g => s[g] && !s[g][2]); }
+function trackWeak(g, ok) {
+  const e = QIDX[g]; if (!e) return;
+  const c = e.c, w = weakStore(), s = qstats(), now = Date.now();
+  (e.q.p || []).forEach(function (pid) {
+    if (!ptOf(c, pid)) return;
+    const k = c.id + '|' + pid;
+    if (!ok) { const o = w[k] || { n: 0 }; w[k] = { n: o.n + 1, ok: 0, t: now }; }
+    else if (w[k]) { w[k].ok = (w[k].ok || 0) + 1; if (w[k].ok >= 2 && !pointHasWrong(c, pid, s)) delete w[k]; }
+  });
+  save('neet_weak', w);
+}
+/* [{c, p, n, t}] — saved weak points + jin points ka koi sawaal abhi galat hai */
+function weakPoints(sid) {
+  const w = weakStore(), out = {};
+  Object.keys(w).forEach(function (k) {
+    const i = k.indexOf('|'), c = chOf(k.slice(0, i)), p = c && ptOf(c, k.slice(i + 1));
+    if (p) out[k] = { c: c, p: p, n: w[k].n || 1, t: w[k].t || 0 };
+  });
+  mistakes().forEach(function (g) {
+    const e = QIDX[g]; (e.q.p || []).forEach(function (pid) {
+      const k = e.c.id + '|' + pid, p = ptOf(e.c, pid); if (!p) return;
+      if (!out[k]) out[k] = { c: e.c, p: p, n: 1, t: 0 };
+    });
+  });
+  return Object.keys(out).map(k => out[k]).filter(x => !sid || x.c.subj === sid).sort((a, b) => (b.t - a.t) || (b.n - a.n));
+}
+/* g ke point(s) ke doosre sawaal — pehle galat, phir naye, phir baaki */
+function revisionPicks(g, excl, k) {
+  const e = QIDX[g]; if (!e) return [];
+  const c = e.c, ps = e.q.p || [], s = qstats();
+  let cand = [];
+  ps.forEach(pid => pointGids(c, pid).forEach(x => { if (x !== g && cand.indexOf(x) < 0 && excl.indexOf(x) < 0) cand.push(x); }));
+  const rank = x => !s[x] ? 1 : !s[x][2] ? 0 : 2 + s[x][0];
+  cand = shuffle(cand); cand.sort((a, b) => rank(a) - rank(b));
+  if (cand.length < k) {   // point mein kam sawaal — same topic / paas ke points se
+    const tops = ps.map(pid => (ptOf(c, pid) || {}).topic).filter(Boolean), pts = c.points || [];
+    const near = {}; ps.forEach(pid => { const ix = pts.findIndex(p => p.id === pid); for (let d = -2; d <= 2; d++) if (pts[ix + d]) near[pts[ix + d].id] = 1; });
+    let more = [];
+    pts.forEach(p => { if (ps.indexOf(p.id) < 0 && (tops.indexOf(p.topic) >= 0 || near[p.id])) pointGids(c, p.id).forEach(x => { if (x !== g && cand.indexOf(x) < 0 && more.indexOf(x) < 0 && excl.indexOf(x) < 0) more.push(x); }); });
+    more = shuffle(more); more.sort((a, b) => rank(a) - rank(b)); cand = cand.concat(more);
+  }
+  return cand.slice(0, k);
+}
+/* practice mein galat jawab ke turant baad 2 revision sawaal */
+function addRevision(i, g) {
+  RUN.added = RUN.added || {}; if (RUN.added[g]) return;
+  RUN.added[g] = 1;
+  const excl = RUN.items.slice(i + 1, i + 3);   // jo agle 2 mein aa hi rahe hain, unhe dobara nahi
+  let picks = revisionPicks(g, excl, 12);
+  if (RUN.unl) {   // unlimited: level alag rahe — sirf usi level ke; na milen to AI wala (usi level ka) aage laao
+    const L0 = RUN.unl.lvl; picks = picks.filter(x => (QIDX[x].q.lvl || 2) === L0);
+    if (picks.length < 2 && RUN.aiq && RUN.aiq.length) picks.push(RUN.aiq.shift());
+  }
+  picks = picks.slice(0, 2); if (!picks.length) return;
+  RUN.xr = RUN.xr || RUN.items.map(() => false);
+  picks.forEach(function (x, j) {
+    const at = i + 1 + j;
+    RUN.items.splice(at, 0, x); RUN.ans.splice(at, 0, null); RUN.rev.splice(at, 0, false);
+    RUN.done.splice(at, 0, false); RUN.tq.splice(at, 0, 0); RUN.xr.splice(at, 0, true);
+  });
+  toast('🔁 Is topic ke ' + picks.length + ' revision sawaal agle aayenge');
+}
+function weakMix(list, per, max) {
+  const s = qstats(); let out = [];
+  list.forEach(function (w) {
+    const gs = shuffle(pointGids(w.c, w.p.id)).sort((a, b) => (!s[a] ? 1 : !s[a][2] ? 0 : 2) - (!s[b] ? 1 : !s[b][2] ? 0 : 2));
+    gs.slice(0, per).forEach(x => { if (out.indexOf(x) < 0) out.push(x); });
+  });
+  return shuffle(out).slice(0, max || 60);
+}
+function startWeak(sid) { startList(weakMix(weakPoints(sid), 3, 60), 'Weak points revision', 'practice'); }
+function startWeakPoint(cid, pid) { const c = chOf(cid), p = ptOf(c, pid); startList(weakMix([{ c: c, p: p }], 99, 99), 'Revision · ' + (p.topic || c.title), 'practice'); }
+/* test ke galat sawaalon ke points se revision */
+function startResultRevision() {
+  const r = RUN.parent || RUN, wrong = r.items.filter((g, k) => r.ans[k] != null && r.ans[k] !== QIDX[g].q.a);
+  const seen = {}, list = [];
+  wrong.forEach(g => { const e = QIDX[g]; (e.q.p || []).forEach(pid => { const k = e.c.id + '|' + pid, p = ptOf(e.c, pid); if (p && !seen[k]) { seen[k] = 1; list.push({ c: e.c, p: p }); } }); });
+  startList(weakMix(list, 3, 60), 'Galat topics · revision', 'practice');
+}
+
+function screenMistakes() {
+  const sid = state.mkSubj || null, wq = mistakes(sid), wp = weakPoints(sid);
+  let h = `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div class="muted">🎯 Meri galtiyan</div></div>
+    <div class="h1">Meri galtiyan 🎯</div>
+    <div class="muted" style="margin-top:4px;line-height:1.5">Jis point ka sawaal galat hua, wo yahan aa jaata hai. Us point ke 2 sawaal lagaatar sahi karo — point list se hat jayega ✅</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">` +
+    [[null, 'Sab']].concat(SUBJ.map(s => [s.id, s.ic + ' ' + s.name])).map(x =>
+      `<button class="tag ${sid === x[0] ? 'g' : ''}" style="border:none;cursor:pointer;font-size:12.5px;padding:7px 11px" onclick="state.mkSubj=${x[0] ? "'" + x[0] + "'" : 'null'};render()">${x[1]}</button>`).join('') + `</div>
+    <div class="stats"><div class="stat"><b style="color:var(--bad)">${wq.length}</b><span>Galat sawaal</span></div>
+      <div class="stat"><b class="goldtx">${wp.length}</b><span>Weak points</span></div></div>
+    <button class="btn" style="margin-top:12px" onclick="startWeak(${sid ? "'" + sid + "'" : ''})" ${wp.length ? '' : 'disabled'}>🔁 Weak points ki revision</button>
+    <button class="btn gh sm" style="margin-top:9px" onclick="startList(mistakes(${sid ? "'" + sid + "'" : ''}),'Galtiyan sudharo','practice')" ${wq.length ? '' : 'disabled'}>✗ Sirf galat sawaal dobara (${wq.length})</button>`;
+  if (!wp.length) return h + `<div class="card" style="margin-top:14px;text-align:center;line-height:1.6"><div style="font-size:36px">🌟</div>Abhi koi weak point nahi hai. Practice karte raho!</div>`;
+  h += `<div class="sec">Weak points <span>${wp.length}</span></div>`;
+  let cur = null;
+  wp.slice(0, 150).forEach(function (w) {
+    if (w.c.id !== cur) { if (cur) h += '</div>'; cur = w.c.id; h += `<div class="mont" style="font-weight:800;font-size:13px;margin:12px 2px 6px">${subjOf(w.c.subj).ic} ${esc(w.c.title)}</div><div class="card" style="padding:4px 14px">`; }
+    const n = pointGids(w.c, w.p.id).length;
+    h += `<div class="pt-row"><div class="t">${w.p.topic ? `<div style="font-family:Montserrat;font-weight:800;font-size:12px;color:var(--gold)">${esc(w.p.topic)}</div>` : ''}
+      <div class="clamp3">${w.p.t}</div><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="tag bad">✗ ${w.n} baar galat</span><span class="tag g" style="cursor:pointer" onclick="startWeakPoint('${w.c.id}','${w.p.id}')">▶ Revision (${n} Q)</span></div></div></div>`;
+  });
+  return h + '</div>';
+};
 
 /* ================= question view helpers ================= */
 const AR_OPTS = [
@@ -336,6 +459,7 @@ function navBar() {
 }
 
 const SCREENS = {};
+SCREENS.mistakes = screenMistakes;
 
 /* ---------- pehli baar: naam ---------- */
 SCREENS.welcome = function () {
@@ -388,8 +512,10 @@ SCREENS.home = function () {
   h += `<div class="sec">Quick start</div><div class="grid2">
     <div class="qa gold" onclick="startMixed(null,20)"><div class="e">⚡</div><div class="n">Quick 20</div><div class="s">Sab chapters se mix</div></div>
     <div class="qa" onclick="go('tests')"><div class="e">🏆</div><div class="n">NEET Mock</div><div class="s">180 Q · 180 min</div></div>
-    <div class="qa" onclick="startList(mistakes(),'Galtiyan sudharo','practice')"><div class="e">🎯</div><div class="n">Mistakes</div><div class="s">${mk} questions</div></div>
+    <div class="qa" onclick="go('mistakes')"><div class="e">🎯</div><div class="n">Meri galtiyan</div><div class="s">${mk} Qs · ${weakPoints().length} points</div></div>
     <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>
+    <div class="tile" style="margin-top:9px;border-color:var(--gold)" onclick="go('unlimited')"><div class="ic">♾️</div><div class="g1"><div class="n">Unlimited practice</div>
+      <div class="s">Easy · Medium · Hard — jab tak padho, sawaal aate rahenge</div></div><div class="ch">›</div></div>
     <div class="tile glow" style="margin-top:9px" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
       <div class="s">Koi bhi sawaal — NCERT ke hisaab se samjhaya jayega</div></div><div class="ch">›</div></div>
     <div class="tile glow" style="margin-top:9px" onclick="openScan()"><div class="ic">📷</div><div class="g1"><div class="n">Chapter scan karo</div>
@@ -489,7 +615,8 @@ SCREENS.chapter = function () {
       <button class="btn gh sm" onclick="startList(bookmarks().filter(g=>QIDX[g].c.id==='${c.id}'),'${jsq(c.title)} — bookmarks','practice')" ${bm.length ? '' : 'disabled'}>⭐ Saved (${bm.length})</button></div>`;
 
   h += `<div class="sec">Har point · revision <span>${Object.keys(revised()[c.id] || {}).length}/${(c.points || []).length} revised</span></div>`;
-  const rv = revised()[c.id] || {}, s = qstats();
+  const rv = revised()[c.id] || {}, s = qstats(), weak = {};
+  weakPoints().forEach(w => { if (w.c.id === c.id) weak[w.p.id] = w.n; });
   let topic = null;
   h += '<div class="card" style="padding:4px 14px">';
   (c.points || []).forEach(function (p, i) {
@@ -499,7 +626,7 @@ SCREENS.chapter = function () {
     const acc = att ? cor / att : null;
     h += `<div class="pt-row"><div class="chk ${rv[p.id] ? 'on' : ''}" onclick="toggleRev('${c.id}','${p.id}')">✓</div>
       <div class="t">${p.t}<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-      <span class="tag">${qs.length} Q</span>${acc == null ? '' : `<span class="tag ${acc >= .7 ? 'ok' : 'bad'}">${pct(acc)}</span>`}
+      ${weak[p.id] ? `<span class="tag bad">⚠️ Weak · ${weak[p.id]}✗</span>` : ''}<span class="tag">${qs.length} Q</span>${acc == null ? '' : `<span class="tag ${acc >= .7 ? 'ok' : 'bad'}">${pct(acc)}</span>`}
       ${qs.length ? `<span class="tag g" style="cursor:pointer" onclick="startList(${JSON.stringify(qs.map(q => gid(c, q))).replace(/"/g, "'")},'Point ${i + 1}','practice')">▶ Practice</span>` : ''}</div></div></div>`;
   });
   h += '</div>';
@@ -656,7 +783,7 @@ function importData(f) {
 function resetAll() {
   if (!confirm('Saari progress, galtiyan, bookmarks aur test history mit jayegi. Pakka?')) return;
   // naam/settings aur Gemini key bachi rahe
-  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13'];
+  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13', 'neet_aiq', 'neet_unl_ai'];
   Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && keep.indexOf(k) < 0).forEach(k => localStorage.removeItem(k));
   go('home');
 }
@@ -1010,6 +1137,117 @@ SCREENS.scan = function () {
   return h;
 };
 
+/* ================= ♾️ Unlimited practice — Easy / Medium / Hard =================
+   Bank ke ~9000 sawaal level-wise; pehle galat, phir naye, phir kam baar kiye hue — kabhi khatam nahi.
+   Gemini key ho to beech-beech mein NCERT point se AI naye sawaal bhi banata hai (phone mein save). */
+const LVL = { 1: ['Easy', '🟢', 'Seedhe NCERT facts'], 2: ['Medium', '🟡', 'Concept + application'], 3: ['Hard', '🔴', 'Tricky, multi-step, numericals'] };
+function unlPool(o) { return Object.keys(QIDX).filter(g => { const e = QIDX[g]; return (e.q.lvl || 2) === o.lvl && (!o.sid || e.c.subj === o.sid) && !e.c.demo; }); }
+function unlPick(o, recent, k) {
+  const s = qstats(); let pool = unlPool(o).filter(g => recent.indexOf(g) < 0);
+  if (!pool.length) pool = unlPool(o);
+  const sc = g => !s[g] ? 1 + Math.random() : !s[g][2] ? Math.random() : 2 + Math.min(s[g][0], 8) + Math.random();
+  return pool.map(g => [sc(g), g]).sort((a, b) => a[0] - b[0]).slice(0, k).map(x => x[1]);
+}
+function startUnlimited(lvl) {
+  const o = { lvl: lvl, sid: state.unlSubj || null, ai: !!askKey() && load('neet_unl_ai', true) };
+  const first = unlPick(o, [], 10);
+  if (!first.length) { toast('Is level mein abhi sawaal nahi hain'); return; }
+  const r = newRun(first, '♾️ ' + LVL[lvl][0] + (o.sid ? ' · ' + subjOf(o.sid).name : ''), 'practice'); if (!r) return;
+  r.unl = o; r.aiq = []; RUN = r; go('run');
+  if (o.ai) aiFill();
+}
+function unlExtend() {
+  const o = RUN.unl, add = unlPick(o, RUN.items.slice(-60), 10);
+  const out = [];
+  add.forEach(function (g, j) { if (o.ai && j % 3 === 2 && RUN.aiq.length) out.push(RUN.aiq.shift()); out.push(g); });
+  out.forEach(g => { RUN.items.push(g); RUN.ans.push(null); RUN.rev.push(false); RUN.done.push(false); RUN.tq.push(0); if (RUN.xr) RUN.xr.push(false); });
+  if (o.ai && RUN.aiq.length < 3) aiFill();
+}
+
+/* Gemini se JSON — wahi key/model jo Doubt poocho mein */
+async function gemJSON(prompt) {
+  const key = askKey(); if (!key) throw new Error('no key');
+  const list = []; const saved = load('neet_model', ''); if (saved) list.push(saved);
+  ASK_MODELS.forEach(m => { if (list.indexOf(m) < 0) list.push(m); });
+  let lastErr = '';
+  for (const m of list) {
+    for (const noThink of [false, true]) {
+      const gen = { temperature: 0.7, maxOutputTokens: 4096, responseMimeType: 'application/json' };
+      if (!noThink && /2\.5/.test(m)) gen.thinkingConfig = { thinkingBudget: 0 };
+      try {
+        const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent?key=' + encodeURIComponent(key),
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: gen }) });
+        const j = await r.json();
+        if (!r.ok) { lastErr = (j && j.error && j.error.message) || ('HTTP ' + r.status); if (r.status === 400 && !noThink) continue; break; }
+        const c = j.candidates && j.candidates[0];
+        const t = c && c.content && c.content.parts ? c.content.parts.map(p => p.text || '').join('') : '';
+        const s = t.indexOf('['), e = t.lastIndexOf(']');
+        if (s >= 0 && e > s) return JSON.parse(t.slice(s, e + 1));
+        lastErr = 'JSON nahi mila'; break;
+      } catch (err) { lastErr = err.message; break; }
+    }
+  }
+  throw new Error(lastErr || 'AI se sawaal nahi bane');
+}
+function aiPoint(o) {
+  const wp = weakPoints(o.sid).filter(w => w.p.t);
+  if (wp.length && Math.random() < 0.5) return wp[Math.floor(Math.random() * Math.min(wp.length, 20))];
+  const chs = CHS.filter(c => !c.demo && (!o.sid || c.subj === o.sid) && (c.points || []).length);
+  const c = chs[Math.floor(Math.random() * chs.length)], p = c.points[Math.floor(Math.random() * c.points.length)];
+  return { c: c, p: p };
+}
+let AI_BUSY = false;
+async function aiFill() {
+  if (AI_BUSY || !RUN || !RUN.unl || !RUN.unl.ai) return;
+  AI_BUSY = true;
+  const o = RUN.unl, run = RUN, w = aiPoint(o);
+  const how = { 1: 'EASY: direct recall of a fact or definition stated in the point.', 2: 'MEDIUM: understanding/application of the concept, one step of reasoning.', 3: 'HARD: NEET-level tricky question — multi-step reasoning, numerical (if the point has a formula), or statement/assertion style with close distractors.' }[o.lvl];
+  const prompt = 'You are a NEET (UG) paper setter. Using ONLY the NCERT text below, write 4 new multiple-choice questions.\n' +
+    'Subject: ' + subjOf(w.c.subj).name + ' · Class ' + w.c.cls + ' · Chapter: ' + w.c.title + (w.p.topic ? ' · Topic: ' + w.p.topic : '') + '\n' +
+    'NCERT text: """' + plain(w.p.t) + '"""\n' +
+    'Difficulty: ' + how + '\n' +
+    'Rules: every fact must come from the NCERT text; exactly 4 options with exactly one correct; no "all/none of the above"; options short; English.\n' +
+    'Return ONLY a JSON array: [{"q": "question", "o": ["opt1","opt2","opt3","opt4"], "a": <index 0-3 of correct option>, "e": "1-2 line explanation from NCERT"}]';
+  try {
+    const arr = await gemJSON(prompt);
+    const st = aiStore(); const got = [];
+    (Array.isArray(arr) ? arr : []).forEach(function (x, j) {
+      if (!x || typeof x.q !== 'string' || x.q.length < 8 || !Array.isArray(x.o) || x.o.length !== 4) return;
+      const o4 = x.o.map(s => String(s).trim()); if (o4.some(s => !s) || new Set(o4.map(s => s.toLowerCase())).size !== 4) return;
+      const a = Number(x.a); if (!(a >= 0 && a <= 3 && a === Math.floor(a))) return;
+      const idx = shuffle([0, 1, 2, 3]);
+      const rec = { id: Date.now().toString(36) + j, cid: w.c.id, pid: w.p.id, lvl: o.lvl, q: x.q.trim(), o: idx.map(i => o4[i]), a: idx.indexOf(a), e: String(x.e || '').trim() };
+      st.push(rec); const g = aiRegister(rec); if (g) got.push(g);
+    });
+    save('neet_aiq', st.slice(-600));
+    if (run === RUN) RUN.aiq = RUN.aiq.concat(got);
+  } catch (e) { if (run === RUN) { RUN.unl.aiErr = (RUN.unl.aiErr || 0) + 1; if (RUN.unl.aiErr >= 3) RUN.unl.ai = false; } }
+  AI_BUSY = false;
+}
+function unlToggleAI() { save('neet_unl_ai', !load('neet_unl_ai', true)); render(); }
+
+SCREENS.unlimited = function () {
+  const sid = state.unlSubj || null, s = qstats(), hasKey = !!askKey(), aiOn = hasKey && load('neet_unl_ai', true);
+  let h = `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div class="muted">♾️ Unlimited</div></div>
+    <div class="h1">Unlimited practice ♾️</div>
+    <div class="muted" style="margin-top:4px;line-height:1.5">Level chuno aur padhte raho — sawaal kabhi khatam nahi honge. Pehle galat wale, phir naye, phir kam practice wale aate hain.</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">` +
+    [[null, 'Sab subjects']].concat(SUBJ.map(x => [x.id, x.ic + ' ' + x.name])).map(x =>
+      `<button class="tag ${sid === x[0] ? 'g' : ''}" style="border:none;cursor:pointer;font-size:12.5px;padding:7px 11px" onclick="state.unlSubj=${x[0] ? "'" + x[0] + "'" : 'null'};render()">${x[1]}</button>`).join('') + '</div>';
+  [1, 2, 3].forEach(function (l) {
+    const pool = unlPool({ lvl: l, sid: sid }), sm = summary(pool);
+    h += `<div class="tile" style="margin-top:10px" onclick="startUnlimited(${l})"><div class="ic">${LVL[l][1]}</div><div class="g1">
+      <div class="n">${LVL[l][0]} <span class="muted" style="font-weight:600">· ${LVL[l][2]}</span></div>
+      <div class="s">${pool.length} sawaal${aiOn ? ' + ✨ AI naye' : ''} · ${sm.seen} kiye · accuracy ${pct(sm.acc)}</div>
+      <div class="bar"><i style="width:${pool.length ? sm.seen / pool.length * 100 : 0}%"></i></div></div><div class="ch">▶</div></div>`;
+  });
+  h += hasKey
+    ? `<div class="card" style="margin-top:12px;display:flex;align-items:center;gap:12px"><div style="flex:1;font-size:13.5px;line-height:1.5"><b>✨ AI se naye sawaal</b><br><span class="muted">NCERT point se Gemini naye sawaal banata hai (har 3rd sawaal). Weak points par zyada.</span></div>
+       <button class="btn sm ${aiOn ? '' : 'gh'}" style="width:auto" onclick="unlToggleAI()">${aiOn ? 'ON' : 'OFF'}</button></div>`
+    : `<div class="card" style="margin-top:12px;font-size:13.5px;line-height:1.5">✨ <b>Doubt poocho</b> mein Gemini key daal do — phir AI har level ke <b>naye</b> sawaal bhi banayega. <button class="link" onclick="openAsk()">Key daalo ›</button></div>`;
+  return h;
+};
+
 /* ================= sessions (practice / test / review) ================= */
 /* RUN = {mode, title, items:[gid], i, ans:[idx|null], rev:[bool], done:[bool](practice), tq:[sec], start, end, ret} */
 function newRun(items, title, mode) {
@@ -1057,6 +1295,8 @@ function goQ(i) { if (!RUN) return; leaveQ(); RUN.i = Math.max(0, Math.min(RUN.i
 function quitRun() {
   // review se back -> result par wapas, parent run ke saath
   if (RUN && RUN.mode === 'review' && RUN.parent) { RUN = RUN.parent; return go('result'); }
+  // unlimited: ✕ dabane par aaj ka summary
+  if (RUN && RUN.unl && state.screen === 'run' && RUN.done.some(Boolean)) return finishPractice();
   if (state.screen !== 'result' && RUN.mode === 'test') {
     if (!confirm('Test chhod rahe ho? Baad mein Home se resume kar sakte ho.')) return;
     leaveQ(); saveRun();
@@ -1073,7 +1313,7 @@ function pick(k) {
     const q = QIDX[g].q, ok = q.a === k, wasWrong = (qstats()[g] || [0, 0, 1])[2] === 0;
     recordAnswer(g, ok);
     RUN.combo = ok ? (RUN.combo || 0) + 1 : 0;
-    if (!ok) say('bad', { k: q.a + 1 });
+    if (!ok) { say('bad', { k: q.a + 1 }); addRevision(i, g); }
     else if (wasWrong) say('fixed');
     else if (RUN.combo >= 5 && RUN.combo % 5 === 0) say('combo', { c: RUN.combo });
     else say('ok');
@@ -1094,6 +1334,7 @@ function readExplAfter() {
 function clearAns() { RUN.ans[RUN.i] = null; saveRun(); render(); }
 function markNext() { RUN.rev[RUN.i] = !RUN.rev[RUN.i]; if (RUN.rev[RUN.i] && RUN.i < RUN.items.length - 1) goQ(RUN.i + 1); else { saveRun(); render(); } }
 function nextQ() {
+  if (RUN.unl && RUN.i >= RUN.items.length - 3) unlExtend();
   if (RUN.i < RUN.items.length - 1) return goQ(RUN.i + 1);
   if (RUN.mode === 'test') return state.sheet = paletteSheet, render();
   if (RUN.mode === 'practice') return finishPractice();
@@ -1114,11 +1355,11 @@ SCREENS.run = function () {
   const isBm = load('neet_bm', []).indexOf(g) >= 0;
   let h = `<div class="topbar"><button class="iconbtn" onclick="quitRun()">✕</button>
     <div style="flex:1;min-width:0;text-align:center"><div class="mont" style="font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(RUN.title)}</div>
-    <div class="bar" style="margin-top:6px"><i style="width:${(i + 1) / n * 100}%"></i></div></div>
+    <div class="bar" style="margin-top:6px"><i style="width:${RUN.unl ? 100 : (i + 1) / n * 100}%"></i></div></div>
     ${mode === 'test' ? '<div class="timer" id="timer">⏱</div>' : `<button class="iconbtn ${isBm ? 'on' : ''}" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>`}</div>`;
 
-  h += `<div class="card"><div class="qhead"><div class="qno">Q ${i + 1} / ${n}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-    <span class="tag">${subjOf(c.subj).name}</span>${q.type === 'num' ? '<span class="tag g">🧮 Numerical</span>' : ''}${q.tag ? `<span class="tag">${esc(q.tag)}</span>` : ''}${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
+  h += `<div class="card"><div class="qhead"><div class="qno">${RUN.unl ? 'Q ' + (i + 1) : 'Q ' + (i + 1) + ' / ' + n}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+    ${RUN.xr && RUN.xr[i] ? '<span class="tag bad">🔁 Revision</span>' : ''}${RUN.unl ? '<span class="tag">' + LVL[q.lvl || 2][1] + ' ' + LVL[q.lvl || 2][0] + '</span>' : ''}<span class="tag">${subjOf(c.subj).name}</span>${q.type === 'num' ? '<span class="tag g">🧮 Numerical</span>' : ''}${q.tag ? `<span class="tag">${esc(q.tag)}</span>` : ''}${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
     ${mode === 'test' ? `<button class="tag" style="border:none;cursor:pointer" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>` : ''}
     <button class="suno" style="font-size:13px;padding:6px 12px" onclick="readQuestion()" title="Sawaal suno">🔊 Suno</button></div></div>
     <div class="qtext">${qHTML(q)}</div></div><div style="margin-top:12px">`;
@@ -1203,6 +1444,7 @@ function submitTest(auto) {
 }
 function finishPractice() {
   leaveQ(); RUN.finished = Date.now();
+  if (RUN.unl) { const keepI = RUN.items.map((_, k) => k).filter(k => RUN.done[k]); ['items', 'ans', 'rev', 'done', 'tq'].forEach(f => RUN[f] = keepI.map(k => RUN[f][k])); if (RUN.xr) RUN.xr = keepI.map(k => RUN.xr[k]); RUN.unl = null; }
   RUN.items.forEach((g, k) => { if (!RUN.done[k]) RUN.ans[k] = null; });
   go('result');
 }
@@ -1235,7 +1477,8 @@ SCREENS.result = function () {
   }
   h += `<div style="margin-top:16px"><button class="btn" onclick="reviewRun(false)">Saare answers dekho</button></div>
     <div class="row" style="margin-top:9px"><button class="btn gh sm" onclick="reviewRun(true)" ${sc.w + sc.u ? '' : 'disabled'}>✗ Sirf galat / chhode (${sc.w + sc.u})</button>
-    <button class="btn gh sm" onclick="retryRun()">↻ Dobara</button></div>`;
+    <button class="btn gh sm" onclick="retryRun()">↻ Dobara</button></div>
+    ${sc.w ? '<button class="btn glow" style="margin-top:9px" onclick="startResultRevision()">🔁 Galat topics ki revision</button>' : ''}`;
   return h;
 };
 function reviewRun(onlyWrong) {
