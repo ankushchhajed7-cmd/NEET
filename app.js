@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.29';
+const APP_VER = 'v1.30';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
