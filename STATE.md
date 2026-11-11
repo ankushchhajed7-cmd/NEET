@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.30'`
-- `sw.js` → `CACHE = 'neet-v31'`
+- `app.js` → `APP_VER = 'v1.31'`
+- `sw.js` → `CACHE = 'neet-v32'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.30): 68 chapters · 3989 points · 9073 questions.
 
 ## Version history (recent)
+- **v1.31** — 📷 *Chapter scan karo* (Home): NCERT page ke 1–4 screenshot/photo do (+ optional note ki kya samajh nahi aaya). Same Gemini key (Doubt poocho wali) se mentor-style Hinglish samjhaav live stream hota hai: overview, step-by-step, figure/table, formula + numericals, NEET points, trick, common galtiyan, 5 check-up sawaal. Photo phone par hi 1600px JPEG banti hai. 🔊 Suno aur 💬 'Aage doubt poocho' (samjhaav chat mein chala jaata hai). Last samjhaav `neet_scan` mein save.
 - **v1.30** — Physical Chemistry (`data/chem/`): XI Ch 1 *Some Basic Concepts of Chemistry* (46 points, 114 questions, 40 numericals), Ch 2 *Structure of Atom* (60, 134, 35), Ch 5 *Thermodynamics* (48, 111, 28), Ch 6 *Equilibrium* (53, 131, 39), Ch 7 *Redox Reactions* (35, 102, 21); XII Ch 1 *Solutions* (42, 123, 30), Ch 2 *Electrochemistry* (58, 179, 48), Ch 3 *Chemical Kinetics* (49, 143, 48). Total 391 points, 1037 questions, 289 numericals, 57 graph/diagram questions. Covers every section, figure, table, example, intext question, summary and exercises.
 - **v1.29** — Physics XII Ch 2 *Electrostatic Potential and Capacitance* (49 points, 111 questions, 29 numericals), Ch 4 *Moving Charges and Magnetism* (44 points, 105 questions, 26 numericals), Ch 12 *Atoms* (31 points, 86 questions, 18 numericals). Physics XI and XII now complete.
 - **v1.28** — Physics XII Ch 1, 3, 5, 6, 7, 8, 9, 10, 11, 13, 14 (`data/phy/12-xx.js`): 451 points, 1203 questions, 273 numericals with step-by-step solutions, 140 graph/diagram questions (inline SVG). Covers every section, figure, table, example, summary, points to ponder and exercises. Ch 2, 4 and 12 PDFs not received yet.

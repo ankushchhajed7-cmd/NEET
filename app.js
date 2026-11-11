@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.30';
+const APP_VER = 'v1.31';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -391,7 +391,9 @@ SCREENS.home = function () {
     <div class="qa" onclick="startList(mistakes(),'Galtiyan sudharo','practice')"><div class="e">🎯</div><div class="n">Mistakes</div><div class="s">${mk} questions</div></div>
     <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>
     <div class="tile glow" style="margin-top:9px" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
-      <div class="s">Koi bhi sawaal — NCERT ke hisaab se samjhaya jayega</div></div><div class="ch">›</div></div>`;
+      <div class="s">Koi bhi sawaal — NCERT ke hisaab se samjhaya jayega</div></div><div class="ch">›</div></div>
+    <div class="tile glow" style="margin-top:9px" onclick="openScan()"><div class="ic">📷</div><div class="g1"><div class="n">Chapter scan karo</div>
+      <div class="s">Screenshot do — mentor poora page detail mein samjhayega</div></div><div class="ch">›</div></div>`;
 
   h += `<div class="sec">Subjects</div>` + SUBJ.map(subjTile).join('');
   if (!CHS.length || CHS.every(c => c.demo)) {
@@ -832,6 +834,180 @@ SCREENS.ask = function () {
       <button class="iconbtn" style="height:48px;width:44px" onclick="askMic()">🎤</button>
       <button class="btn" style="width:56px;padding:13px 0" onclick="askSend()" ${state.askBusy ? 'disabled' : ''}>➤</button></div>
     <button class="btn gh sm" style="margin-top:10px" onclick="askForgetKey()">🔑 API key badlo</button>`;
+};
+
+/* ================= 📷 Chapter scan — screenshot do, mentor poora samjhaye (Gemini, same key) =================
+   Photo phone mein hi chhoti (JPEG) ki jaati hai, phir seedha Google ko jaati hai. Jawab live (stream) aata hai. */
+function scanSys() {
+  return [
+    "Tum ek anubhavi, pyaar se samjhane wale NEET (UG) MENTOR ho. Student ka naam: " + callName() + ".",
+    "Student ne NCERT (Class 11/12 Biology, Chemistry ya Physics) ke page / chapter ka screenshot bheja hai jo use samajh nahi aa raha. Tumhe us page ki HAR baat poori detail mein samjhani hai, jaise ek mentor saamne baith kar padhata hai.",
+    "NIYAM:",
+    "1. Bhasha: SIMPLE HINGLISH (Roman script). Scientific terms English mein hi rakho (jaise 'mitochondria', 'enthalpy'). Agar student English maange to English.",
+    "2. Sirf wahi samjhao jo screenshot mein hai, aur NCERT ke hisaab se bilkul sahi. Jo hissa padha na ja sake ya kata ho, saaf bolo. Andaaze se fact mat banao.",
+    "3. Is kram (order) mein likho, har hissa ek heading ke saath (heading line '## ' se shuru karo):",
+    "## Ye page kis baare mein hai — chapter/topic ka naam aur 2-3 line mein bada picture.",
+    "## Step-by-step samjhaav — page ke har paragraph/point ko ek-ek karke aasaan bhasha mein todo. Har naye term ka matlab batao. Roz-marra ki zindagi ka example do.",
+    "## Figure / diagram / table — agar page par hai to uska har label aur kya dikhata hai samjhao. Graph ho to axes aur shape ka matlab batao.",
+    "## Formula aur numericals — har formula ka matlab, unit, kab lagta hai. Solved example ho to STEP BY STEP (Given, Formula, Substitution, Answer). Na ho to ek chhota example khud banao.",
+    "## NEET ke liye zaroori points — exam mein kya-kya poochha jaata hai, 4-8 bullet.",
+    "## Yaad rakhne ki trick — mnemonic ya shortcut.",
+    "## Common galtiyan — students kahan confuse hote hain.",
+    "## Khud ko check karo — 5 chhote sawaal (MCQ ya one-line) aur aakhir mein unke sahi jawab.",
+    "4. Bullet ke liye '- ' use karo, zaroori shabd **bold** karo. Lambi paragraph se bacho.",
+    "5. Agar photo padhai ki nahi hai ya bilkul dhundhli hai, to pyaar se batao aur saaf photo maango.",
+    "6. Hausla badhao, aakhir mein ek line motivation. Emoji bahut kam."
+  ].join('\n');
+}
+function openScan() { state.scanBusy = false; go('scan'); }
+function scanImgs() { return state.scanImgs || (state.scanImgs = []); }
+function scanLast() { return load('neet_scan', null); }
+
+/* photo ko max 1600px JPEG mein badlo — kam data, tez upload */
+function scanShrink(file) {
+  return new Promise(function (ok, bad) {
+    const rd = new FileReader();
+    rd.onerror = () => bad(new Error('Photo padhi nahi gayi'));
+    rd.onload = function () {
+      const im = new Image();
+      im.onerror = () => bad(new Error('Ye photo khul nahi rahi'));
+      im.onload = function () {
+        const M = 1600, s = Math.min(1, M / Math.max(im.width, im.height));
+        const cv = document.createElement('canvas'); cv.width = Math.round(im.width * s); cv.height = Math.round(im.height * s);
+        const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+        ok(cv.toDataURL('image/jpeg', 0.85));
+      };
+      im.src = rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+async function scanPick(input) {
+  const files = Array.from(input.files || []); input.value = '';
+  const imgs = scanImgs();
+  for (const f of files) {
+    if (imgs.length >= 4) { toast('Ek baar mein max 4 photo'); break; }
+    if (!/^image\//.test(f.type)) { toast('Sirf photo/screenshot chalega'); continue; }
+    try { imgs.push(await scanShrink(f)); } catch (e) { toast(e.message); }
+  }
+  render();
+}
+function scanDel(i) { scanImgs().splice(i, 1); render(); }
+function scanNew() { state.scanImgs = []; save('neet_scan', null); render(); }
+
+/* Gemini stream: data: {...} lines */
+async function scanStream(model, key, body, onText) {
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(key),
+    { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) {
+    let msg = 'HTTP ' + r.status; try { const j = await r.json(); if (j && j.error && j.error.message) msg = j.error.message; } catch (e) {}
+    return { err: msg, badArg: r.status === 400 };
+  }
+  const rd = r.body && r.body.getReader ? r.body.getReader() : null, dec = new TextDecoder();
+  let buf = rd ? '' : (await r.text()) + '\n', txt = '', fin = '';
+  for (;;) {
+    if (rd) { const ch = await rd.read(); if (ch.done) break; buf += dec.decode(ch.value, { stream: true }); }
+    let k;
+    while ((k = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, k).trim(); buf = buf.slice(k + 1);
+      if (line.indexOf('data:') !== 0) continue;
+      try {
+        const j = JSON.parse(line.slice(5));
+        const c = j.candidates && j.candidates[0];
+        if (c && c.content && c.content.parts) { const t = c.content.parts.map(p => p.text || '').join(''); if (t) { txt += t; onText(txt); } }
+        if (c && c.finishReason) fin = c.finishReason;
+      } catch (e) {}
+    }
+    if (!rd) break;
+  }
+  if (!txt) return { err: fin ? 'Jawab nahi aaya (' + fin + ')' : 'Khaali jawab aaya' };
+  return { txt: txt.trim(), cut: fin === 'MAX_TOKENS' };
+}
+function scanBody(model, imgs, note, noThink) {
+  const parts = imgs.map(d => ({ inlineData: { mimeType: 'image/jpeg', data: d.split(',')[1] } }));
+  parts.push({ text: (note ? 'Mujhe khaas taur par ye samajh nahi aaya: ' + note + '\n\n' : '') + 'Is page/chapter ko poori detail mein samjhao.' });
+  const gen = { temperature: 0.4, maxOutputTokens: 8192 };
+  if (!noThink && /2\.5/.test(model)) gen.thinkingConfig = { thinkingBudget: 0 };
+  return { contents: [{ role: 'user', parts: parts }], systemInstruction: { parts: [{ text: scanSys() }] }, generationConfig: gen };
+}
+async function scanGo() {
+  if (state.scanBusy) return;
+  const imgs = scanImgs(); if (!imgs.length) { toast('Pehle screenshot chuno 📷'); return; }
+  const key = askKey(); if (!key) { openAsk(); return; }
+  const noteEl = document.getElementById('scanNote'), note = noteEl ? noteEl.value.trim() : '';
+  state.scanNote = note; state.scanBusy = true; save('neet_scan', null); render();
+  const out = () => document.getElementById('scanOut');
+  const show = t => { const o = out(); if (o) o.innerHTML = fmtMentor(t) + '<span class="muted"> ▍</span>'; };
+  const list = []; const saved = load('neet_model', '');
+  if (saved) list.push(saved);
+  ASK_MODELS.forEach(m => { if (list.indexOf(m) < 0) list.push(m); });
+  let res = null, lastErr = '', discovered = false;
+  for (let i = 0; i < list.length; i++) {
+    try {
+      let r = await scanStream(list[i], key, scanBody(list[i], imgs, note, false), show);
+      if (r.err && r.badArg && !r.txt) r = await scanStream(list[i], key, scanBody(list[i], imgs, note, true), show);
+      if (r.txt) { res = r; save('neet_model', list[i]); break; }
+      lastErr = r.err || '';
+    } catch (e) { lastErr = e.message || 'Network problem'; }
+    if (i === list.length - 1 && !discovered) {
+      discovered = true; const f = await askDiscover(key);
+      if (f) f.forEach(m => { if (list.indexOf(m) < 0) list.push(m); });
+    }
+  }
+  state.scanBusy = false;
+  if (res) save('neet_scan', { text: res.txt + (res.cut ? '\n\n(Jawab lamba tha, yahin ruk gaya. Kam photo ke saath dobara try karo.)' : ''), note: note, t: Date.now() });
+  else save('neet_scan', { err: /API[_ ]?key not valid|API_KEY_INVALID|invalid api key/i.test(lastErr)
+    ? 'Google keh raha hai ki API key kaam nahi kar rahi 🔑 "Doubt poocho" mein jaakar "API key badlo" se nayi key daalo.\n\n(' + lastErr + ')'
+    : 'Abhi samjhaav nahi mil paaya 😔 Internet check karke phir try karo.\n\n(' + (lastErr || 'network problem') + ')' });
+  render();
+  const o = out(); if (o) o.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+/* chhota markdown: ## heading, - bullet, **bold** */
+function fmtMentor(t) {
+  return String(t || '').split('\n').map(function (ln) {
+    let s = esc(ln).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    const h = s.match(/^\s*#{1,4}\s+(.*)$/);
+    if (h) return '<div class="mh">' + h[1].replace(/<\/?b>/g, '') + '</div>';
+    const b = s.match(/^\s*[-*•]\s+(.*)$/);
+    if (b) return '<div class="mb">' + b[1] + '</div>';
+    return s.trim() ? '<div class="mp">' + s + '</div>' : '<div style="height:6px"></div>';
+  }).join('');
+}
+function scanSpeak() { const l = scanLast(); if (l && l.text) speak(l.text.replace(/[*#`]/g, '').replace(/^\s*-\s+/gm, ''), 'hi'); }
+function scanToAsk() {
+  const l = scanLast(); if (!l || !l.text) return;
+  const m = askMsgs();
+  m.push({ role: 'user', text: '📷 Maine ek page scan kiya' + (l.note ? ' (doubt: ' + l.note + ')' : '') + '. Uska samjhaav:' });
+  m.push({ role: 'ai', text: l.text.replace(/\*\*/g, '').replace(/^#+\s*/gm, '') });
+  askSave(m); openAsk();
+}
+
+SCREENS.scan = function () {
+  const back = `<button class="link" onclick="go('home')">‹ Back</button>`;
+  if (!askKey()) {
+    return `<div class="topbar">${back}<div class="muted">📷 Chapter scan</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:40px">📷🔑</div>
+      <div style="font-size:14.5px;line-height:1.6;color:var(--ink2);margin:8px 0 14px">Scan ke liye wahi free Google Gemini key chahiye jo <b>Doubt poocho</b> mein lagti hai. Ek baar wahan key daal do — scan bhi chalne lagega.</div>
+      <button class="btn" onclick="openAsk()">🔑 Key daalo (Doubt poocho)</button></div>`;
+  }
+  const imgs = scanImgs(), last = scanLast(), busy = state.scanBusy;
+  let h = `<div class="topbar">${back}<div class="muted">📷 Chapter scan</div>${last || imgs.length ? '<button class="link" style="font-size:12.5px" onclick="scanNew()">＋ Naya</button>' : '<span></span>'}</div>
+    <div class="h1" style="font-size:21px">Samajh nahi aaya? Photo do 🧑‍🏫</div>
+    <div class="muted" style="margin:4px 0 12px;line-height:1.5">NCERT page ka screenshot ya photo do — mentor har point, figure, formula aur numerical detail mein samjhayega, aur aakhir mein check-up sawaal bhi dega.</div>`;
+  h += `<div class="card"><div style="display:flex;flex-wrap:wrap;gap:8px">` +
+    imgs.map((d, i) => `<div style="position:relative"><img src="${d}" alt="" style="width:76px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">
+      ${busy ? '' : `<button onclick="scanDel(${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:none;background:var(--bad);color:#fff;font-weight:800;font-size:12px">×</button>`}</div>`).join('') +
+    (imgs.length < 4 && !busy ? `<label style="width:76px;height:96px;border-radius:10px;border:1.5px dashed var(--gold);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:12px;font-weight:700;color:var(--ink2)">
+      <span style="font-size:24px">📷</span>${imgs.length ? 'Aur' : 'Photo'}<input type="file" accept="image/*" multiple style="display:none" onchange="scanPick(this)"></label>` : '') +
+    `</div><div class="muted" style="font-size:12px;margin-top:8px">Gallery se screenshot chuno ya camera se photo lo · max 4 page</div>
+    <textarea id="scanNote" rows="2" class="txt" placeholder="(Optional) Kya khaas samajh nahi aaya? Jaise: Fig 5.3 ya ye numerical" style="margin-top:10px;resize:none;font-size:14.5px" ${busy ? 'disabled' : ''}>${esc(state.scanNote || '')}</textarea>
+    <button class="btn glow" style="margin-top:10px" onclick="scanGo()" ${busy || !imgs.length ? 'disabled' : ''}>${busy ? 'Samjha rahe hain… 💭' : '🧑‍🏫 Detail mein samjhao'}</button></div>`;
+  if (busy) h += `<div id="scanOut" class="card mentor" style="margin-top:12px"><div class="muted">Page padh rahe hain… 📖</div></div>`;
+  else if (last && last.text) h += `<div id="scanOut" class="card mentor" style="margin-top:12px">${fmtMentor(last.text)}</div>
+    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn gh sm" style="flex:1" onclick="scanSpeak()">🔊 Suno</button>
+    <button class="btn gh sm" style="flex:1" onclick="scanToAsk()">💬 Aage doubt poocho</button></div>`;
+  else if (last && last.err) h += `<div id="scanOut" class="card" style="margin-top:12px;white-space:pre-wrap;font-size:14px">${esc(last.err)}</div>`;
+  return h;
 };
 
 /* ================= sessions (practice / test / review) ================= */
