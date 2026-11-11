@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.33'`
-- `sw.js` → `CACHE = 'neet-v34'`
+- `app.js` → `APP_VER = 'v1.34'`
+- `sw.js` → `CACHE = 'neet-v35'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.30): 68 chapters · 3989 points · 9073 questions.
 
 ## Version history (recent)
+- **v1.34** — 🎬 **Video solution** (har sawaal ke jawab ke baad): blackboard player, steps ek-ek karke likhte hue (wipe animation) + awaaz — Sawaal → Diya hai → Formula → Value daalo → Jawab → Sahi option → 📌 NCERT point; ⏮ ⏸/▶ ⏭, speed 0.75/1/1.25×, progress bar. Offline, app ke `sol` steps se. ✨ **AI detail video**: Gemini (Doubt poocho key) 7-10 scene ka script banata hai (concept, kyun, steps, galat options kyun galat, common mistake, NEET tip), usi player mein; `neet_vid` mein cache (40).
 - **v1.33** — Home par ♾️ Unlimited practice tile bhi green highlight (Doubt poocho / Chapter scan jaisa).
 - **v1.32** — (1) **Galat jawab → revision:** practice mein galat jawab par usi point ke 2 sawaal turant agle aate hain (🔁 Revision tag); point kam sawaal wala ho to same topic / paas ke points se. Galat point `neet_weak` mein; us point ke 2 sahi jawab (aur koi sawaal galat na bacha) par hatta hai. **🎯 Meri galtiyan** screen: subject filter, weak points list (chapter-wise, kitni baar galat, ▶ Revision), "Weak points ki revision" mix, "Sirf galat sawaal". Chapter ke point par ⚠️ Weak tag. Test result par "🔁 Galat topics ki revision". (2) **♾️ Unlimited practice:** Easy / Medium / Hard alag (q.lvl), subject filter; bank (~9000) se pehle galat, phir naye, phir kam practice wale — kabhi khatam nahi (10-10 karke judte hain). Gemini key ho to har 3rd sawaal ✨ AI: NCERT point text se 4 MCQ (weak points par 50%), validate karke `neet_aiq` mein save (max 600) aur QIDX mein jud jaate hain. Revision bhi usi level ki. ✕ par aaj ka summary.
 - **v1.31** — 📷 *Chapter scan karo* (Home): NCERT page ke 1–4 screenshot/photo do (+ optional note ki kya samajh nahi aaya). Same Gemini key (Doubt poocho wali) se mentor-style Hinglish samjhaav live stream hota hai: overview, step-by-step, figure/table, formula + numericals, NEET points, trick, common galtiyan, 5 check-up sawaal. Photo phone par hi 1600px JPEG banti hai. 🔊 Suno aur 💬 'Aage doubt poocho' (samjhaav chat mein chala jaata hai). Last samjhaav `neet_scan` mein save.
