@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.35';
+const APP_VER = 'v1.36';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -606,7 +606,8 @@ SCREENS.chapter = function () {
     <div class="stats"><div class="stat"><b>${sm.seen}/${sm.total}</b><span>Done</span></div>
       <div class="stat"><b class="goldtx">${pct(sm.acc)}</b><span>Accuracy</span></div>
       <div class="stat"><b>${(c.points || []).length}</b><span>Points</span></div></div>
-    <div style="margin-top:14px"><button class="btn" onclick="startChapter('${c.id}')">${pos > 0 && pos < gids.length ? '▶ Continue practice (Q' + (pos + 1) + ')' : '▶ Practice shuru karo'}</button></div>
+    ${(c.points || []).length ? `<button class="btn glow" style="margin-top:14px" onclick="vidChapter('${c.id}')">🎬 Video lesson — poora chapter${(load('neet_vpos', {})[c.id] || 0) ? ' (point ' + ((load('neet_vpos', {})[c.id] || 0) + 1) + ' se)' : ''}</button>` : ''}
+    <div style="margin-top:${(c.points || []).length ? 9 : 14}px"><button class="btn" onclick="startChapter('${c.id}')">${pos > 0 && pos < gids.length ? '▶ Continue practice (Q' + (pos + 1) + ')' : '▶ Practice shuru karo'}</button></div>
     <div class="row" style="margin-top:9px">
       <button class="btn gh sm" onclick="startList(shuffle(allGids([chOf('${c.id}')])).slice(0,45),'${jsq(c.title)} — test','test')">📝 Chapter test</button>
       <button class="btn gh sm" onclick="startList(shuffle(allGids([chOf('${c.id}')])),'${jsq(c.title)} — random','practice')">🔀 Random</button></div>
@@ -1303,6 +1304,15 @@ function vidFramesPoint(c, p) {
   fr.push({ tag: '✅ Ab practice', html: 'Is point ke ' + n + ' sawaal practice karo', say: 'Bahut badhiya. Ab is point ke sawaal practice karo.' });
   return fr;
 }
+/* 🎬 poora chapter — har point ek ke baad ek (playlist), jahan chhoda wahin se */
+function vidChapter(cid, i) {
+  const c = chOf(cid), pts = (c && c.points) || []; if (!pts.length) return;
+  if (i == null) i = load('neet_vpos', {})[cid] || 0;
+  if (i >= pts.length) i = 0;
+  const pos = load('neet_vpos', {}); pos[cid] = i; save('neet_vpos', pos);
+  vidOpen(vidFramesPoint(c, pts[i]), '🎬 ' + c.title + ' · ' + (i + 1) + '/' + pts.length, null, false, cid + '|' + pts[i].id);
+  VID.list = { cid: cid, i: i, n: pts.length };
+}
 function vidPoint(cid, pid) { const c = chOf(cid), p = ptOf(c, pid); if (p) vidOpen(vidFramesPoint(c, p), '🎬 ' + (p.topic || 'Point video'), null, false, cid + '|' + pid); }
 function vidOpen(frames, title, g, ai) {
   vidStop();
@@ -1322,6 +1332,8 @@ function vidShow() {
     <div class="vbar">${V0.frames.map((_, i) => `<i class="${i < k ? 'd' : i === k ? 'c' : ''}" onclick="vidGo(${i})"></i>`).join('')}</div>
     <div class="vboard" id="vboard">` + V0.frames.slice(0, k + 1).map((x, i) =>
       `<div class="vline ${i === k ? 'cur' + (V0.playing ? ' anim' : '') : ''}" ${i === k && V0.playing ? `style="animation-duration:${dur.toFixed(1)}s"` : ''}><div class="vtag">${x.tag}</div><div class="vtx">${x.html}</div></div>`).join('') + `</div>
+    ${V0.list ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn gh sm" onclick="vidChapter('${V0.list.cid}',${V0.list.i - 1})" ${V0.list.i ? '' : 'disabled'}>‹ Pichhla point</button>
+      <button class="btn gh sm" onclick="vidChapter('${V0.list.cid}',${V0.list.i + 1})" ${V0.list.i < V0.list.n - 1 ? '' : 'disabled'}>Agla point ›</button></div>` : ''}
     <div class="vctl"><button class="iconbtn" onclick="vidGo(${k - 1})" ${k ? '' : 'disabled'}>⏮</button>
       <button class="btn sm" style="width:auto;padding:12px 26px" onclick="vidToggle()">${V0.playing ? '⏸ Pause' : '▶ Play'}</button>
       <button class="iconbtn" onclick="vidGo(${k + 1})" ${k < V0.frames.length - 1 ? '' : 'disabled'}>⏭</button>
@@ -1335,7 +1347,9 @@ function vidShow() {
     speak(speakable(f.say), 'hi');
     vidWait(tok, vidEst(f.say), function () {
       if (!VID || VID !== V0 || V0.tok !== tok || !V0.playing) return;
-      if (V0.k < V0.frames.length - 1) { V0.k++; setTimeout(vidShow, 450); } else { V0.playing = false; vidShow(); }
+      if (V0.k < V0.frames.length - 1) { V0.k++; setTimeout(vidShow, 450); }
+      else if (V0.list && V0.list.i < V0.list.n - 1) { const L2 = V0.list; setTimeout(function () { if (VID === V0) vidChapter(L2.cid, L2.i + 1); }, 900); }
+      else { V0.playing = false; vidShow(); }
     });
   }
 }
