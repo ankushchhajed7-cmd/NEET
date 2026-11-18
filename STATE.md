@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.37'`
-- `sw.js` → `CACHE = 'neet-v38'`
+- `app.js` → `APP_VER = 'v1.38'`
+- `sw.js` → `CACHE = 'neet-v39'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -12,11 +12,12 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 | Botany | Ch 1, 2, 3, 5, 6, 8, 10, 11, 12, 13 | Ch 1, 4, 5, 8, 11, 12, 13 |
 | Zoology | Ch 4, 7, 9, 14–19 (14–19 grouped as "Human Physiology") | Ch 2, 3, 6, 7, 9, 10 |
 | Physics | Ch 1–14 (Class XI complete) | Ch 1–14 (Class XII complete) |
-| Chemistry | Ch 1–7 (Physical + Inorganic Ch 3, 4) | Ch 1–5 (Physical Ch 1–3, Inorganic Ch 4, 5) |
+| Chemistry | Ch 1–9 (complete) | Ch 1–9 + Ch 11 p-Block (Groups 15–18, earlier edition) + Ch 12 Qualitative Analysis (Lab Manual) |
 
-Total (v1.37): 72 chapters · 4174 points · 9564 questions.
+Total (v1.38): 80 chapters · 4446 points · 10262 questions.
 
 ## Version history (recent)
+- **v1.38** — Organic Chemistry + extras (`data/chem/`): XI Ch 8 *Organic Chemistry – Some Basic Principles and Techniques* (40 points, 100 questions), Ch 9 *Hydrocarbons* (41, 103); XII Ch 6 *Haloalkanes and Haloarenes* (32, 86), Ch 7 *Alcohols, Phenols and Ethers* (32, 81), Ch 8 *Aldehydes, Ketones and Carboxylic Acids* (31, 82), Ch 9 *Amines* (30, 74); plus `12-11` *The p-Block Elements (Groups 15–18)* from the earlier XII edition Unit 7 (40, 105) and `12-12` *Systematic Qualitative Analysis* from the XII Lab Manual Unit 7 (26, 69). Total 272 points, 698 questions, 39 numericals, 34 diagram questions.
 - **v1.37** — Inorganic Chemistry (`data/chem/`): XI Ch 3 *Classification of Elements and Periodicity in Properties* (47 points, 128 questions, 9 numericals), Ch 4 *Chemical Bonding and Molecular Structure* (55, 133, 16); XII Ch 4 *The d- and f-Block Elements* (48, 128, 11), Ch 5 *Coordination Compounds* (35, 102, 13). Total 185 points, 491 questions, 49 numericals, 21 graph/diagram questions. Covers every section, table, problem/example, intext question, summary and exercises.
 - **v1.36** — Chapter page par bada green **🎬 Video lesson — poora chapter** button: har point ka video ek ke baad ek apne aap (playlist), ‹ Pichhla / Agla › point, jahan chhoda wahin se (`neet_vpos`).
 - **v1.35** — Biology video: video solution ab A-R (Assertion, Reason alag), Statement I/II, Statement I–IV aur Match (har pair A → II) ko step-by-step dikhata hai. Har NCERT point par 🎬 Video (point ki lines ek-ek karke + related figure + Practice) aur ✨ AI lesson (Gemini: facts, example, diagram in words, mnemonic, NEET traps, check question; cache `pt:cid|pid`). Chapter page aur Meri galtiyan dono par. AI detail video ka prompt Biology ke liye alag (keywords, diagram, mnemonic).
@@ -50,4 +51,4 @@ Total (v1.37): 72 chapters · 4174 points · 9564 questions.
 
 ## Pending
 - With Zoology XII Ch 2, all 19 Class XI and 13 Class XII NCERT Biology chapters (current numbering) are in the app.
-- Physics: Class XI and XII complete (Ch 1–14 each). Chemistry: Physical done (XI Ch 1, 2, 5, 6, 7; XII Ch 1, 2, 3); Inorganic done (XI Ch 3, 4; XII Ch 4, 5). Organic chapters pending (XI Ch 8, 9; XII Ch 6–10).
+- Physics: Class XI and XII complete (Ch 1–14 each). Chemistry: Class XI Ch 1–9 and Class XII Ch 1–9 done, plus p-block (groups 15–18) and salt analysis. XII Ch 10 Biomolecules not yet received.
