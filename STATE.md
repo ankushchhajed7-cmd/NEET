@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.36'`
-- `sw.js` → `CACHE = 'neet-v37'`
+- `app.js` → `APP_VER = 'v1.37'`
+- `sw.js` → `CACHE = 'neet-v38'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -12,11 +12,12 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 | Botany | Ch 1, 2, 3, 5, 6, 8, 10, 11, 12, 13 | Ch 1, 4, 5, 8, 11, 12, 13 |
 | Zoology | Ch 4, 7, 9, 14–19 (14–19 grouped as "Human Physiology") | Ch 2, 3, 6, 7, 9, 10 |
 | Physics | Ch 1–14 (Class XI complete) | Ch 1–14 (Class XII complete) |
-| Chemistry | Ch 1, 2, 5, 6, 7 (Physical) | Ch 1, 2, 3 (Physical) |
+| Chemistry | Ch 1–7 (Physical + Inorganic Ch 3, 4) | Ch 1–5 (Physical Ch 1–3, Inorganic Ch 4, 5) |
 
-Total (v1.30): 68 chapters · 3989 points · 9073 questions.
+Total (v1.37): 72 chapters · 4174 points · 9564 questions.
 
 ## Version history (recent)
+- **v1.37** — Inorganic Chemistry (`data/chem/`): XI Ch 3 *Classification of Elements and Periodicity in Properties* (47 points, 128 questions, 9 numericals), Ch 4 *Chemical Bonding and Molecular Structure* (55, 133, 16); XII Ch 4 *The d- and f-Block Elements* (48, 128, 11), Ch 5 *Coordination Compounds* (35, 102, 13). Total 185 points, 491 questions, 49 numericals, 21 graph/diagram questions. Covers every section, table, problem/example, intext question, summary and exercises.
 - **v1.36** — Chapter page par bada green **🎬 Video lesson — poora chapter** button: har point ka video ek ke baad ek apne aap (playlist), ‹ Pichhla / Agla › point, jahan chhoda wahin se (`neet_vpos`).
 - **v1.35** — Biology video: video solution ab A-R (Assertion, Reason alag), Statement I/II, Statement I–IV aur Match (har pair A → II) ko step-by-step dikhata hai. Har NCERT point par 🎬 Video (point ki lines ek-ek karke + related figure + Practice) aur ✨ AI lesson (Gemini: facts, example, diagram in words, mnemonic, NEET traps, check question; cache `pt:cid|pid`). Chapter page aur Meri galtiyan dono par. AI detail video ka prompt Biology ke liye alag (keywords, diagram, mnemonic).
 - **v1.34** — 🎬 **Video solution** (har sawaal ke jawab ke baad): blackboard player, steps ek-ek karke likhte hue (wipe animation) + awaaz — Sawaal → Diya hai → Formula → Value daalo → Jawab → Sahi option → 📌 NCERT point; ⏮ ⏸/▶ ⏭, speed 0.75/1/1.25×, progress bar. Offline, app ke `sol` steps se. ✨ **AI detail video**: Gemini (Doubt poocho key) 7-10 scene ka script banata hai (concept, kyun, steps, galat options kyun galat, common mistake, NEET tip), usi player mein; `neet_vid` mein cache (40).
@@ -49,4 +50,4 @@ Total (v1.30): 68 chapters · 3989 points · 9073 questions.
 
 ## Pending
 - With Zoology XII Ch 2, all 19 Class XI and 13 Class XII NCERT Biology chapters (current numbering) are in the app.
-- Physics: Class XI and XII complete (Ch 1–14 each). Chemistry: Physical chemistry done (XI Ch 1, 2, 5, 6, 7; XII Ch 1, 2, 3). Inorganic and Organic chapters pending.
+- Physics: Class XI and XII complete (Ch 1–14 each). Chemistry: Physical done (XI Ch 1, 2, 5, 6, 7; XII Ch 1, 2, 3); Inorganic done (XI Ch 3, 4; XII Ch 4, 5). Organic chapters pending (XI Ch 8, 9; XII Ch 6–10).
