@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.39';
+const APP_VER = 'v1.40';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -70,6 +70,7 @@ function recordAnswer(g, ok) {
   const s = qstats(); const r = s[g] || [0, 0, 0];
   r[0]++; if (ok) r[1]++; r[2] = ok ? 1 : 0; s[g] = r; save('neet_qs', s);
   trackWeak(g, ok);
+  srsUpdate(g, ok);
   bumpDay();
 }
 function dkey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
@@ -506,6 +507,10 @@ SCREENS.home = function () {
       <div class="g1"><div class="n">Test adhoora hai — resume karo</div><div class="s">${esc(saved.title)} · ${saved.items.length} Qs</div></div><div class="ch">›</div></div>`;
   }
 
+  h += countdownCard();
+  const due = srsDue().length;
+  h += `<div class="tile ${due ? 'glow' : ''}" style="margin-top:9px" onclick="startRevision()"><div class="ic">🔁</div><div class="g1"><div class="n">Aaj ka revision${due ? ' · ' + due + ' sawaal' : ' ✅'}</div>
+    <div class="s">${due ? 'Galat sawaal 1, 3, 7, 21 din baad dobara — taaki bhoolo nahi' : 'Aaj kuch baaki nahi · aage ' + srsUpcoming() + ' sawaal line mein'}</div></div><div class="ch">›</div></div>`;
   h += `<div class="stats"><div class="stat"><b class="goldtx">${pct(sm.acc)}</b><span>Accuracy</span></div>
     <div class="stat"><b>${mk}</b><span>Galtiyan</span></div>
     <div class="stat"><b>${lastTest ? lastTest.score : '—'}</b><span>Last test</span></div></div>`;
@@ -524,6 +529,7 @@ SCREENS.home = function () {
     <div class="tile glow" style="margin-top:9px" onclick="openScan()"><div class="ic">📷</div><div class="g1"><div class="n">Chapter scan karo</div>
       <div class="s">Screenshot do — mentor poora page detail mein samjhayega</div></div><div class="ch">›</div></div>`;
 
+  h += newFeaturesGrid();
   h += `<div class="sec">Subjects</div>` + SUBJ.map(subjTile).join('');
   if (!CHS.length || CHS.every(c => c.demo)) {
     h += `<div class="card" style="margin-top:6px;font-size:13.5px;line-height:1.55;color:var(--ink2)">📄 Abhi sirf <b>demo</b> chapter hai. Subject ki PDF aate hi har lesson ka har point yahan MCQ ban kar aa jayega.</div>`;
@@ -616,7 +622,10 @@ SCREENS.chapter = function () {
       <button class="btn gh sm" onclick="startList(shuffle(allGids([chOf('${c.id}')])),'${jsq(c.title)} — random','practice')">🔀 Random</button></div>
     <div class="row" style="margin-top:9px">
       <button class="btn gh sm" onclick="startList(mistakes().filter(g=>QIDX[g].c.id==='${c.id}'),'${jsq(c.title)} — mistakes','practice')" ${mk.length ? '' : 'disabled'}>🎯 Galtiyan (${mk.length})</button>
-      <button class="btn gh sm" onclick="startList(bookmarks().filter(g=>QIDX[g].c.id==='${c.id}'),'${jsq(c.title)} — bookmarks','practice')" ${bm.length ? '' : 'disabled'}>⭐ Saved (${bm.length})</button></div>`;
+      <button class="btn gh sm" onclick="startList(bookmarks().filter(g=>QIDX[g].c.id==='${c.id}'),'${jsq(c.title)} — bookmarks','practice')" ${bm.length ? '' : 'disabled'}>⭐ Saved (${bm.length})</button></div>
+    <div class="row" style="margin-top:9px">
+      <button class="btn gh sm" onclick="openNotes('${c.id}')" ${(c.points || []).length ? '' : 'disabled'}>📄 Short notes${c.subj === 'phy' || c.subj === 'chem' ? ' / formula' : ''}</button>
+      <button class="btn gh sm" onclick="startFlash('${c.id}')">🃏 Flashcards</button></div>`;
 
   h += `<div class="sec">Har point · revision <span>${Object.keys(revised()[c.id] || {}).length}/${(c.points || []).length} revised</span></div>`;
   const rv = revised()[c.id] || {}, s = qstats(), weak = {};
@@ -679,12 +688,15 @@ SCREENS.progress = function () {
       <div class="bar"><i style="width:${sm.total ? sm.seen / sm.total * 100 : 0}%"></i></div></div></div>`;
   });
   // weak chapters
-  const weak = CHS.map(c => ({ c: c, sm: summary(allGids([c])) })).filter(x => x.sm.acc != null).sort((a, b) => a.sm.acc - b.sm.acc).slice(0, 6);
-  h += `<div class="sec">Kamzor chapters <span>sabse kam accuracy</span></div>`;
-  if (!weak.length) h += '<div class="empty">Practice karo — phir yahan dikhega kahan mehnat chahiye.</div>';
+  const weak = CHS.map(c => ({ c: c, sm: summary(allGids([c])) })).filter(x => x.sm.acc != null && x.sm.seen >= 5 && x.sm.acc < .8).sort((a, b) => a.sm.acc - b.sm.acc).slice(0, 10);
+  h += `<div class="sec">Kamzor chapters <span>kam se kam 5 Q kiye · 80% se kam</span></div>`;
+  if (!weak.length) h += '<div class="empty">Abhi koi kamzor chapter nahi 👏 (jo chapter 5+ sawaal karke 80% se kam aaye, wo yahan dikhega).</div>';
   weak.forEach(x => {
-    h += `<div class="tile" onclick="openChapter('${x.c.id}')"><div class="ic">${subjOf(x.c.subj).ic}</div><div class="g1"><div class="n">${esc(x.c.title)}</div>
-      <div class="s">Accuracy <b style="color:${x.sm.acc >= .7 ? 'var(--ok)' : 'var(--bad)'}">${pct(x.sm.acc)}</b> · ${x.sm.wrong} galat</div></div><div class="ch">›</div></div>`;
+    const wr = mistakes().filter(g => QIDX[g].c.id === x.c.id);
+    h += `<div class="tile"><div class="ic" onclick="openChapter('${x.c.id}')">${subjOf(x.c.subj).ic}</div><div class="g1" onclick="openChapter('${x.c.id}')"><div class="n">${esc(x.c.title)}</div>
+      <div class="s">Accuracy <b style="color:${x.sm.acc >= .6 ? 'var(--gold)' : 'var(--bad)'}">${pct(x.sm.acc)}</b> · ${x.sm.seen}/${x.sm.total} kiye · ${x.sm.wrong} galat</div>
+      <div class="bar"><i style="width:${Math.round(x.sm.acc * 100)}%;background:${x.sm.acc >= .6 ? 'var(--gold)' : 'var(--bad)'}"></i></div></div>
+      <button class="btn sm" style="width:auto;flex:0 0 auto;padding:8px 10px;font-size:12px" onclick="${wr.length ? `startList(mistakes().filter(g=>QIDX[g].c.id==='${x.c.id}'),'${jsq(x.c.title)} — galtiyan','practice')` : `startChapter('${x.c.id}')`}">${wr.length ? '🎯 ' + wr.length : '▶'}</button></div>`;
   });
   return h;
 };
@@ -710,6 +722,15 @@ SCREENS.more = function () {
     <button class="btn gh sm" style="margin-top:8px" onclick="soundTest()">🔊 Awaaz test karo</button>
     <div class="sec">Roz ka target <span>questions / day</span></div><div class="seg">` +
     [30, 50, 100, 150, 200].map(n => `<button class="${st.goal === n ? 'on' : ''}" onclick="setSetting('goal',${n})">${n}</button>`).join('') + `</div>
+    <div class="sec">NEET exam date <span>countdown + roz ka plan</span></div>
+    <div class="row"><input class="txt" type="date" id="nd" value="${neetDate()}"><button class="btn sm" style="flex:0 0 90px" onclick="const v=document.getElementById('nd').value;if(v){setSetting('neetDate',v);toast('Date save · '+daysLeft()+' din baaki')}">Save</button></div>
+    <div class="sec">Roz ki yaad 🔔 <span>notification</span></div>
+    <div class="seg"><button class="${st.remind ? 'on' : ''}" onclick="setReminder(true)">🔔 On</button><button class="${!st.remind ? 'on' : ''}" onclick="setReminder(false)">🔕 Off</button></div>
+    ${st.remind ? `<div class="row" style="margin-top:8px"><input class="txt" type="time" id="rt" value="${st.remindTime || '19:00'}"><button class="btn sm" style="flex:0 0 90px" onclick="setSetting('remindTime',document.getElementById('rt').value||'19:00');toast('Time save')">Save</button></div>` : ''}
+    <div class="muted" style="margin-top:6px;line-height:1.5">Is time ke baad, agar aaj ka target ya revision baaki hai, to ek notification aayega. Phone app ko poori tarah band kar de to notification late ya na bhi aa sakta hai.</div>
+    <div class="sec">Mere records</div>
+    <div class="tile" onclick="state.notesBack='more';go('mynotes')"><div class="ic">📝</div><div class="g1"><div class="n">Mere notes</div><div class="s">${Object.keys(notesStore()).length} notes</div></div><div class="ch">›</div></div>
+    <div class="tile" onclick="go('reports')"><div class="ic">🚩</div><div class="g1"><div class="n">Reported sawaal</div><div class="s">${Object.keys(reports()).length} reports · share karke bhejo</div></div><div class="ch">›</div></div>
     <div class="sec">Medium</div><div class="seg">
       <button class="${st.lang === 'en' ? 'on' : ''}" onclick="setSetting('lang','en')">English</button>
       <button class="${st.lang === 'hi' ? 'on' : ''}" onclick="setSetting('lang','hi')">हिन्दी</button></div>
@@ -788,7 +809,7 @@ function importData(f) {
 function resetAll() {
   if (!confirm('Saari progress, galtiyan, bookmarks aur test history mit jayegi. Pakka?')) return;
   // naam/settings aur Gemini key bachi rahe
-  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13', 'neet_aiq', 'neet_unl_ai', 'neet_vid'];
+  const keep = ['neet_set', 'neet_key', 'neet_model', 'neet_bust', 'neet_lastver', 'neet_theme_v13', 'neet_aiq', 'neet_unl_ai', 'neet_vid','neet_notes','neet_reports'];
   Object.keys(localStorage).filter(k => k.indexOf('neet_') === 0 && keep.indexOf(k) < 0).forEach(k => localStorage.removeItem(k));
   go('home');
 }
@@ -1625,6 +1646,9 @@ SCREENS.run = function () {
       <div class="pt" style="font-size:11.5px">${esc(c.title)}${c.src ? ' · ' + esc(c.src) : ''}</div>
       <div class="row" style="margin-top:10px"><button class="btn sm" onclick="vidPlay()">🎬 Video solution</button>
       <button class="btn gh sm" onclick="vidAI()">✨ AI detail video</button></div>
+      <div class="row" style="margin-top:8px"><button class="btn gh sm" onclick="openNote()">📝 ${notesStore()[g] ? 'Mera note ✓' : 'Note likho'}</button>
+      <button class="btn gh sm" onclick="openReport()">🚩 ${reports()[g] ? 'Reported ✓' : 'Galti report karo'}</button></div>
+      ${notesStore()[g] ? `<div class="pt" style="white-space:pre-wrap">📝 <b>Mera note:</b> ${esc(notesStore()[g].t)}</div>` : ''}
       <button class="btn gh sm glow" style="margin-top:10px" onclick="askAboutQ()">🧑‍🏫 Is sawaal par doubt poocho</button></div>`;
   }
 
@@ -1720,6 +1744,7 @@ SCREENS.result = function () {
         <div class="mont goldtx" style="font-weight:800;font-size:18px">${b.c * 4 - b.w}/${b.n * 4}</div></div>`;
     }).join('') + '</div>';
   }
+  if (att) h += analysisHTML(RUN);
   h += `<div style="margin-top:16px"><button class="btn" onclick="reviewRun(false)">Saare answers dekho</button></div>
     <div class="row" style="margin-top:9px"><button class="btn gh sm" onclick="reviewRun(true)" ${sc.w + sc.u ? '' : 'disabled'}>✗ Sirf galat / chhode (${sc.w + sc.u})</button>
     <button class="btn gh sm" onclick="retryRun()">↻ Dobara</button></div>
@@ -1746,6 +1771,281 @@ window.addEventListener('pagehide', function () { if (RUN && RUN.mode === 'test'
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
+/* ================= v1.40 extras: report, SRS revision, PYQ, analysis, countdown, notes, flashcards, diagrams, my notes, reminder ================= */
+
+/* ---- (3) Roz ka revision — spaced repetition: galat/mushkil sawaal 1, 3, 7, 21 din baad ---- */
+const SRS_STEPS = [1, 3, 7, 21];
+function dayNo(d) { d = d || new Date(); return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000); }
+function srsStore() { return load('neet_srs', {}); }
+function srsUpdate(g, ok) {
+  const s = srsStore(), t = dayNo();
+  if (!ok) s[g] = { s: 0, d: t + SRS_STEPS[0] };
+  else if (s[g] && s[g].d <= t) { const n = s[g].s + 1; if (n >= SRS_STEPS.length) delete s[g]; else s[g] = { s: n, d: t + SRS_STEPS[n] }; }
+  else return;
+  save('neet_srs', s);
+}
+function srsAdd(g) { const s = srsStore(); s[g] = { s: 0, d: dayNo() + SRS_STEPS[0] }; save('neet_srs', s); }
+function srsDue() { const s = srsStore(), t = dayNo(); return Object.keys(s).filter(g => QIDX[g] && s[g].d <= t).sort((a, b) => s[a].d - s[b].d); }
+function srsUpcoming() { const s = srsStore(), t = dayNo(); return Object.keys(s).filter(g => QIDX[g] && s[g].d > t).length; }
+function startRevision() { const d = srsDue(); if (!d.length) { toast('Aaj ka revision ho gaya ✅'); return; } startList(d.slice(0, 60), '🔁 Aaj ka revision', 'practice'); }
+
+/* ---- (2) Galat sawaal report ---- */
+const REP_REASONS = ['Sahi jawab galat lag raha hai', 'Sawaal galat / adhoora hai', 'Explanation galat hai', 'Option / spelling / figure ki galti', 'Kuch aur'];
+function reports() { return load('neet_reports', {}); }
+function openReport() { state.sheet = reportSheet; render(); }
+function reportSheet() {
+  const g = RUN.items[RUN.i], r = reports()[g];
+  return `<div class="sheet" onclick="if(event.target===this){state.sheet=null;render()}"><div class="in">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="mont" style="font-weight:800">🚩 Is sawaal mein galti?</div>
+    <button class="link" onclick="state.sheet=null;render()">Close</button></div>
+    ${REP_REASONS.map((t, k) => `<label style="display:flex;gap:10px;align-items:center;padding:9px 2px;font-size:14px"><input type="radio" name="rr" value="${k}" ${r && r.r === k ? 'checked' : k === 0 && !r ? 'checked' : ''}> ${t}</label>`).join('')}
+    <textarea id="repNote" rows="2" class="txt" placeholder="(Optional) kya galat hai? jaise: option 3 sahi hona chahiye" style="margin-top:6px;resize:none">${r ? esc(r.n || '') : ''}</textarea>
+    <button class="btn" style="margin-top:10px" onclick="saveReport()">🚩 Report save karo</button>
+    ${r ? `<button class="btn gh sm" style="margin-top:8px" onclick="delReport('${jsq(g)}');state.sheet=null;render()">Report hatao</button>` : ''}
+    <div class="muted" style="margin-top:8px;font-size:12px">More → "Reported sawaal" mein list milegi; wahan se copy karke mujhe bhejo, main theek kar dunga.</div></div></div>`;
+}
+function saveReport() {
+  const g = RUN.items[RUN.i], el = document.querySelector('input[name=rr]:checked'), n = (document.getElementById('repNote') || {}).value || '';
+  const r = reports(); r[g] = { r: el ? +el.value : 0, n: n.trim().slice(0, 300), t: Date.now() }; save('neet_reports', r);
+  state.sheet = null; render(); toast('🚩 Report save ho gaya');
+}
+function delReport(g) { const r = reports(); delete r[g]; save('neet_reports', r); }
+function reportText() {
+  const r = reports();
+  return Object.keys(r).filter(g => QIDX[g]).map((g, i) => {
+    const e = QIDX[g], q = e.q, o = optsOf(q);
+    return (i + 1) + '. [' + g + '] ' + e.c.title + '\n   Q: ' + plain(qHTML(q)).slice(0, 220) + '\n   App ka jawab: (' + (q.a + 1) + ') ' + plain(o[q.a] || '') +
+      '\n   Report: ' + REP_REASONS[r[g].r] + (r[g].n ? ' — ' + r[g].n : '');
+  }).join('\n\n');
+}
+async function shareReports() {
+  const t = 'NEET app — reported sawaal (' + APP_VER + ')\n\n' + reportText();
+  try { if (navigator.share) { await navigator.share({ title: 'NEET reports', text: t }); return; } } catch (e) {}
+  try { await navigator.clipboard.writeText(t); toast('📋 Copy ho gaya — WhatsApp/chat mein paste karo'); } catch (e) { prompt('Copy karo:', t); }
+}
+SCREENS.reports = function () {
+  const r = reports(), ks = Object.keys(r).filter(g => QIDX[g]).sort((a, b) => r[b].t - r[a].t);
+  let h = `<div class="topbar"><button class="link" onclick="go('more')">‹ Back</button><div class="muted">🚩 Reported</div></div>
+    <div class="h1">Reported sawaal 🚩</div><div class="muted" style="margin-top:4px">${ks.length} sawaal · inhe copy karke bhejo, theek kar diye jayenge.</div>
+    <button class="btn" style="margin-top:12px" onclick="shareReports()" ${ks.length ? '' : 'disabled'}>📤 List share / copy karo</button>`;
+  if (!ks.length) return h + '<div class="empty">Abhi koi report nahi. Sawaal ke jawab ke baad 🚩 button milta hai.</div>';
+  h += '<div class="card" style="margin-top:12px;padding:4px 14px">';
+  ks.forEach(g => { const e = QIDX[g]; h += `<div class="pt-row"><div class="t"><div class="clamp3">${plain(qHTML(e.q))}</div>
+    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span class="tag bad">${REP_REASONS[r[g].r]}</span><span class="tag">${esc(e.c.title)}</span>
+    <span class="tag g" style="cursor:pointer" onclick="startList(['${jsq(g)}'],'Reported','practice')">Dekho</span>
+    <span class="tag" style="cursor:pointer" onclick="delReport('${jsq(g)}');render()">✕ Hatao</span></div>${r[g].n ? `<div class="muted" style="margin-top:4px">${esc(r[g].n)}</div>` : ''}</div></div>`; });
+  return h + '</div>';
+};
+
+/* ---- (11) Sawaal par apna note ---- */
+function notesStore() { return load('neet_notes', {}); }
+function openNote() { state.sheet = noteSheet; render(); }
+function noteSheet() {
+  const g = RUN.items[RUN.i], n = notesStore()[g];
+  return `<div class="sheet" onclick="if(event.target===this){state.sheet=null;render()}"><div class="in">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="mont" style="font-weight:800">📝 Mera note</div>
+    <button class="link" onclick="state.sheet=null;render()">Close</button></div>
+    <textarea id="noteTxt" rows="4" class="txt" placeholder="Apni trick / yaad rakhne ki baat likho…" style="resize:none">${n ? esc(n.t) : ''}</textarea>
+    <button class="btn" style="margin-top:10px" onclick="saveNote()">💾 Save</button>
+    ${n ? `<button class="btn gh sm" style="margin-top:8px" onclick="saveNote(true)">Note mitao</button>` : ''}</div></div>`;
+}
+function saveNote(del) {
+  const g = RUN.items[RUN.i], s = notesStore(), t = ((document.getElementById('noteTxt') || {}).value || '').trim();
+  if (del || !t) delete s[g]; else s[g] = { t: t.slice(0, 1000), d: Date.now() };
+  save('neet_notes', s); state.sheet = null; render(); toast(del || !t ? 'Note hata diya' : '📝 Note save');
+}
+SCREENS.mynotes = function () {
+  const s = notesStore(), ks = Object.keys(s).filter(g => QIDX[g]).sort((a, b) => s[b].d - s[a].d);
+  let h = `<div class="topbar"><button class="link" onclick="go(state.notesBack||'home')">‹ Back</button><div class="muted">📝 Mere notes</div></div>
+    <div class="h1">Mere notes 📝</div><div class="muted" style="margin-top:4px">${ks.length} notes</div>`;
+  if (!ks.length) return h + '<div class="empty">Kisi bhi sawaal ke jawab ke baad "📝 Note" se apni trick likho — yahan jama hogi.</div>';
+  if (ks.length) h += `<button class="btn gh sm" style="margin-top:10px" onclick="startList(${JSON.stringify(ks).replace(/"/g, "'")},'Mere notes ke sawaal','practice')">▶ In sab sawaalon ki practice</button>`;
+  h += '<div class="card" style="margin-top:12px;padding:4px 14px">';
+  ks.forEach(g => { const e = QIDX[g]; h += `<div class="pt-row"><div class="t"><div style="font-weight:700;white-space:pre-wrap">${esc(s[g].t)}</div>
+    <div class="clamp3 muted" style="margin-top:4px">${plain(qHTML(e.q))}</div>
+    <div style="margin-top:6px;display:flex;gap:6px"><span class="tag">${subjOf(e.c.subj).ic} ${esc(e.c.title)}</span><span class="tag g" style="cursor:pointer" onclick="startList(['${jsq(g)}'],'Note','practice')">Sawaal dekho</span></div></div></div>`; });
+  return h + '</div>';
+};
+
+/* ---- (4) PYQ ---- */
+function pyqGids(sid) { return Object.keys(QIDX).filter(g => QIDX[g].q.pyq && (!sid || QIDX[g].c.subj === sid)); }
+SCREENS.pyq = function () {
+  const all = pyqGids();
+  let h = `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div class="muted">📜 NEET PYQ</div></div>
+    <div class="h1">NEET PYQ 📜</div><div class="muted" style="margin-top:4px;line-height:1.5">Pichhle saalon ke NEET sawaal, saal ke tag ke saath.</div>`;
+  if (!all.length) return h + `<div class="card" style="margin-top:14px;line-height:1.6;font-size:14px">Abhi app mein PYQ sawaal nahi jode gaye hain. 📩 NEET previous year papers (PDF) bhejo — har sawaal chapter ke saath "NEET 2024" jaise tag ke saath yahan aa jayega, aur practice/test dono ho sakenge.</div>`;
+  const yrs = {}; all.forEach(g => { const y = String(QIDX[g].q.pyq).match(/\d{4}/); const k = y ? y[0] : 'Other'; (yrs[k] = yrs[k] || []).push(g); });
+  h += `<button class="btn" style="margin-top:12px" onclick="startList(shuffle(pyqGids()).slice(0,45),'PYQ mix','practice')">▶ Random 45 PYQ</button><div class="sec">Saal-wise</div><div class="grid2">`;
+  Object.keys(yrs).sort().reverse().forEach(y => { h += `<div class="qa" onclick="startList(${JSON.stringify(yrs[y]).replace(/"/g, "'")},'NEET ${y}','practice')"><div class="n">NEET ${y}</div><div class="s">${yrs[y].length} Q</div></div>`; });
+  h += `</div><div class="sec">Subject-wise</div><div class="grid2">` + SUBJ.map(s => `<div class="qa" onclick="startList(pyqGids('${s.id}'),'${s.name} PYQ','practice')"><div class="e">${s.ic}</div><div class="n">${s.name}</div><div class="s">${pyqGids(s.id).length} Q</div></div>`).join('') + '</div>';
+  return h;
+};
+
+/* ---- (10) Diagram / graph practice ---- */
+function imgGids(sid) { return Object.keys(QIDX).filter(g => QIDX[g].q.img && !/\|ai/.test(g) && (!sid || QIDX[g].c.subj === sid)); }
+SCREENS.diagrams = function () {
+  let h = `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div class="muted">🖼 Diagram practice</div></div>
+    <div class="h1">Diagram & graph practice 🖼</div><div class="muted" style="margin-top:4px;line-height:1.5">Sirf woh sawaal jinmein figure, diagram ya graph hai — dekh kar pehchanna aur samajhna.</div>
+    <button class="btn" style="margin-top:12px" onclick="startList(shuffle(imgGids()).slice(0,45),'Diagram mix','practice')" ${imgGids().length ? '' : 'disabled'}>▶ Sab subjects · random 45</button><div class="sec">Subject-wise</div><div class="grid2">`;
+  SUBJ.forEach(s => { const n = imgGids(s.id).length; h += `<div class="qa" onclick="${n ? `startList(shuffle(imgGids('${s.id}')),'${s.name} diagrams','practice')` : `toast('Is subject mein abhi diagram sawaal nahi')`}"><div class="e">${s.ic}</div><div class="n">${s.name}</div><div class="s">${n} diagram Q</div></div>`; });
+  h += '</div><div class="sec">Chapter-wise</div><div class="card" style="padding:4px 14px">';
+  CHS.forEach(c => { const n = (c.qs || []).filter(q => q.img).length; if (!n) return; h += `<div class="pt-row" style="align-items:center;cursor:pointer" onclick="startList(allGids([chOf('${c.id}')]).filter(g=>QIDX[g].q.img),'${jsq(c.title)} · diagrams','practice')"><div class="t">${subjOf(c.subj).ic} ${esc(c.title)}</div><span class="tag g">${n}</span></div>`; });
+  return h + '</div>';
+};
+
+/* ---- (8) Short notes & formula sheet (chapter ke NCERT points se) ---- */
+function openNotes(cid) { state.ncid = cid; state.nformula = false; go('chnotes'); }
+SCREENS.chnotes = function () {
+  const c = chOf(state.ncid); if (!c) return SCREENS.home();
+  const sci = c.subj === 'phy' || c.subj === 'chem', fOnly = sci && state.nformula;
+  let pts = c.points || [];
+  if (fOnly) pts = pts.filter(p => /=|∝|→/.test(plain(p.t)));
+  let h = `<div class="topbar noprint"><button class="link" onclick="openChapter('${c.id}')">‹ ${esc(c.title)}</button><button class="link" onclick="window.print()">🖨 Print/PDF</button></div>
+    <div class="h1">📄 ${fOnly ? 'Formula sheet' : 'Short notes'}</div><div class="muted" style="margin-top:4px">${esc(c.title)} · ${pts.length} points</div>`;
+  if (sci) h += `<div class="seg noprint" style="margin-top:10px"><button class="${!fOnly ? 'on' : ''}" onclick="state.nformula=false;render()">📄 Sab points</button><button class="${fOnly ? 'on' : ''}" onclick="state.nformula=true;render()">🧮 Sirf formula wale</button></div>`;
+  let topic = null; h += '<div class="card" style="margin-top:12px">';
+  pts.forEach(p => {
+    if (p.topic !== topic) { topic = p.topic; h += `<div class="mont" style="font-weight:800;font-size:13px;color:var(--gold);margin:12px 0 4px">${esc(topic || '')}</div>`; }
+    h += `<div style="font-size:14px;line-height:1.6;margin:4px 0 8px;padding-left:12px;border-left:2px solid var(--line)">${p.t}</div>`;
+  });
+  return h + '</div>';
+};
+
+/* ---- (9) Flashcards ---- */
+function fcCards(cid) {
+  const chs = cid ? [chOf(cid)] : CHS;
+  const out = []; chs.forEach(c => (c.qs || []).forEach(q => { if ((q.type === 'mcq' || q.type === 'num') && q.o && plain(q.o[q.a]).length < 120) out.push(gid(c, q)); }));
+  return out;
+}
+function startFlash(cid) {
+  const due = srsDue().filter(g => !cid || QIDX[g].c.id === cid);
+  const pool = shuffle(fcCards(cid)).filter(g => due.indexOf(g) < 0);
+  state.fc = { cid: cid || null, list: due.slice(0, 10).concat(pool).slice(0, 20), i: 0, flip: false, ok: 0, no: 0 };
+  if (!state.fc.list.length) { toast('Is chapter mein flashcard nahi'); return; }
+  go('flash');
+}
+function fcAns(know) {
+  const f = state.fc, g = f.list[f.i];
+  if (know) { f.ok++; srsUpdate(g, true); } else { f.no++; srsAdd(g); }
+  f.i++; f.flip = false; render();
+}
+SCREENS.flash = function () {
+  const f = state.fc; if (!f) return SCREENS.home();
+  const back = f.cid ? `openChapter('${f.cid}')` : `go('home')`;
+  let h = `<div class="topbar"><button class="link" onclick="${back}">‹ Back</button><div class="muted">🃏 Flashcards</div></div>`;
+  if (f.i >= f.list.length) return h + `<div class="card" style="text-align:center;margin-top:20px"><div style="font-size:42px">🎉</div>
+    <div class="h1" style="font-size:20px;margin-top:6px">${f.list.length} cards ho gaye</div>
+    <div class="muted" style="margin-top:6px">✅ Yaad tha: ${f.ok} · 😕 Nahi yaad: ${f.no} (inka revision kal aayega)</div>
+    <button class="btn" style="margin-top:14px" onclick="startFlash(${f.cid ? `'${f.cid}'` : ''})">🔁 Naye 20 cards</button></div>`;
+  const e = QIDX[f.list[f.i]], q = e.q, v = V(q), o = optsOf(q);
+  h += `<div class="muted" style="text-align:center">${f.i + 1} / ${f.list.length} · ${subjOf(e.c.subj).ic} ${esc(e.c.title)}</div>
+    <div class="fcard ${f.flip ? 'flip' : ''}" onclick="state.fc.flip=!state.fc.flip;render()">
+      ${f.flip ? `<div class="fc-lbl">JAWAB</div><div class="fc-ans">${o[q.a]}</div><div class="fc-e">${v.e || ''}</div>`
+               : `<div class="fc-lbl">SAWAAL · tap karke jawab dekho</div><div class="fc-q">${qHTML(q)}</div>`}</div>`;
+  h += f.flip ? `<div class="row" style="margin-top:12px"><button class="btn gh sm" onclick="fcAns(false)">😕 Nahi yaad tha</button><button class="btn sm" onclick="fcAns(true)">✅ Yaad tha</button></div>`
+              : `<button class="btn" style="margin-top:12px" onclick="state.fc.flip=true;render()">👀 Jawab dikhao</button>`;
+  return h;
+};
+
+/* ---- (7) NEET countdown + daily plan ---- */
+function neetDate() { const st = settings(); return st.neetDate || '2027-05-02'; }
+function daysLeft() { const p = neetDate().split('-').map(Number); return Math.max(0, dayNo(new Date(p[0], p[1] - 1, p[2])) - dayNo()); }
+function planPerDay() { const sm = summary(allGids(CHS)), d = daysLeft(); return d ? Math.ceil((sm.total - sm.seen) / d) : sm.total - sm.seen; }
+function countdownCard() {
+  const d = daysLeft(), sm = summary(allGids(CHS)), per = planPerDay(), due = srsDue().length;
+  return `<div class="card" style="margin-top:12px;display:flex;gap:12px;align-items:center">
+    <div style="text-align:center;min-width:64px"><div class="mont goldtx" style="font-weight:900;font-size:28px;line-height:1">${d}</div><div class="muted" style="font-size:11px">din baaki</div></div>
+    <div style="flex:1;font-size:13px;line-height:1.5"><b>NEET ${neetDate().split('-').reverse().join('/')}</b><br>
+    Baaki ${sm.total - sm.seen} naye sawaal → roz <b>${per}</b> karo to sab ho jayenge${due ? `<br>🔁 Aaj ke revision: <b>${due}</b>` : ''}</div>
+    ${settings().goal !== per && per > 0 ? `<button class="btn sm" style="width:auto;padding:9px 10px;font-size:12px" onclick="setSetting('goal',${Math.max(10, per)});toast('Roz ka target ${Math.max(10, per)} set')">Target ${Math.max(10, per)}</button>` : ''}</div>`;
+}
+
+/* ---- (12) Roz ki yaad (notification) ---- */
+async function setReminder(on) {
+  if (on) {
+    if (!('Notification' in window)) { alert('Is phone/browser mein notification support nahi hai.'); return; }
+    const p = await Notification.requestPermission();
+    if (p !== 'granted') { alert('Notification ki permission nahi mili. Phone settings mein allow karo.'); return; }
+    try { const reg = await navigator.serviceWorker.ready; if (reg.periodicSync) await reg.periodicSync.register('neet-remind', { minInterval: 12 * 3600 * 1000 }); } catch (e) {}
+  }
+  else { try { const reg = await navigator.serviceWorker.ready; if (reg.periodicSync) await reg.periodicSync.unregister('neet-remind'); } catch (e) {} }
+  setSetting('remind', !!on); if (on) toast('🔔 Roz yaad dilaya jayega');
+}
+function remindCheck() {
+  const st = settings(); if (!st.remind || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const [hh, mm] = String(st.remindTime || '19:00').split(':').map(Number), now = new Date();
+  if (now.getHours() * 60 + now.getMinutes() < hh * 60 + mm) return;
+  if (load('neet_remind_day', '') === todayKey()) return;
+  const left = (st.goal || 50) - todayCount(), due = srsDue().length;
+  if (left <= 0 && !due) return;
+  save('neet_remind_day', todayKey());
+  const body = (left > 0 ? 'Aaj ka target: ' + left + ' sawaal baaki. ' : '') + (due ? '🔁 ' + due + ' revision baaki.' : '');
+  try { navigator.serviceWorker.ready.then(r => r.showNotification('NEET · ' + callName() + ' 📚', { body: body, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'neet-remind' })); } catch (e) {}
+}
+setInterval(remindCheck, 60000); setTimeout(remindCheck, 4000);
+
+/* ---- (5) Test analysis (result screen) ---- */
+function analysisHTML(run) {
+  const items = run.items, byCh = {}, timed = [];
+  let wrong = 0, fastWrong = 0;
+  items.forEach((g, k) => {
+    const e = QIDX[g]; if (!e) return; const a = run.ans[k], ok = a != null && a === e.q.a, t = run.tq ? run.tq[k] || 0 : 0;
+    const b = byCh[e.c.id] = byCh[e.c.id] || { c: e.c, n: 0, ok: 0, w: 0 }; b.n++; if (ok) b.ok++; else if (a != null) { b.w++; wrong++; if (t > 0 && t < 15) fastWrong++; }
+    timed.push([t, k]);
+  });
+  const chs = Object.keys(byCh).map(k => byCh[k]).filter(x => x.n >= 2).sort((a, b) => (a.ok / a.n) - (b.ok / b.n));
+  const att = run.ans.filter(x => x != null).length, tt = (run.tq || []).reduce((s, x) => s + x, 0);
+  let h = `<div class="sec">Analysis 📊</div><div class="stats">
+    <div class="stat"><b style="color:var(--bad)">−${wrong}</b><span>Galat se katte</span></div>
+    <div class="stat"><b>${att ? Math.round(tt / att) + 's' : '—'}</b><span>Avg / sawaal</span></div>
+    <div class="stat"><b style="color:${fastWrong ? 'var(--bad)' : 'var(--ok)'}">${fastWrong}</b><span>Jaldbazi galat (&lt;15s)</span></div></div>`;
+  if (fastWrong) h += `<div class="card" style="margin-top:8px;font-size:13px;line-height:1.5">💡 ${fastWrong} sawaal 15 second se kam mein galat hue — ye tukke ho sakte hain. Pakka na ho to chhodna behtar (−1 bachega).</div>`;
+  if (chs.length) {
+    h += `<div class="sec">Chapter-wise <span>sabse kamzor upar</span></div><div class="card" style="padding:4px 14px">` + chs.slice(0, 8).map(x =>
+      `<div class="pt-row" style="align-items:center"><div class="t">${subjOf(x.c.subj).ic} ${esc(x.c.title)}<div class="muted">✓${x.ok} ✗${x.w} of ${x.n}</div></div>
+      <span class="tag ${x.ok / x.n >= .7 ? 'ok' : 'bad'}" style="cursor:pointer" onclick="openChapter('${x.c.id}')">${pct(x.ok / x.n)} ›</span></div>`).join('') + '</div>';
+  }
+  const slow = timed.filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).slice(0, 5);
+  if (slow.length) h += `<div class="sec">Sabse zyada time</div><div class="card" style="padding:4px 14px">` + slow.map(([t, k]) => {
+    const e = QIDX[items[k]], ok = run.ans[k] != null && run.ans[k] === e.q.a;
+    return `<div class="pt-row" style="align-items:center"><div class="t"><b>Q${k + 1}</b> · ${esc(e.c.title)}<div class="muted">${run.ans[k] == null ? 'chhoda' : ok ? '✓ sahi' : '✗ galat'}</div></div><span class="tag">${fmtTime(t)}</span></div>`;
+  }).join('') + '</div>';
+  return h;
+}
+
+/* ---- Naye features: Home par rangeen squares (NEW badge) ---- */
+const NEW_FEATS = [
+  ['🔁', 'Aaj ka revision', 'Galat sawaal 1-3-7-21 din baad wapas', '#16a34a', "startRevision()"],
+  ['🃏', 'Flashcards', 'Sawaal dekho, palto, jawab yaad karo', '#7c3aed', "startFlash()"],
+  ['📄', 'Short notes', 'Har chapter ke notes + formula sheet', '#0891b2', "go('subjects')"],
+  ['🖼', 'Diagram practice', 'Sirf figure / graph wale sawaal', '#ea580c', "go('diagrams')"],
+  ['📜', 'NEET PYQ', 'Pichhle saal ke sawaal', '#b45309', "go('pyq')"],
+  ['📝', 'Mere notes', 'Sawaal par apni trick likho', '#db2777', "state.notesBack='home';go('mynotes')"],
+  ['🚩', 'Galti report', 'Galat sawaal ho to report karo', '#dc2626', "go('reports')"],
+  ['📊', 'Test analysis', 'Test ke baad: kahan time gaya, kaunsa chapter kamzor', '#2563eb', "go('tests')"],
+  ['📉', 'Kamzor chapters', 'Kis chapter par mehnat chahiye', '#9333ea', "go('progress')"],
+  ['⏳', 'NEET countdown', 'Kitne din baaki + roz kitne sawaal', '#0d9488', "go('more')"],
+  ['🔔', 'Roz ki yaad', 'Padhai ka notification', '#ca8a04', "go('more')"]
+];
+const NEW_HELP = {
+  'Short notes': 'Kisi bhi chapter ko kholo → "📄 Short notes" button dabao.',
+  'Mere notes': 'Sawaal ka jawab dene ke baad "📝 Note likho" dabao — note yahan jama hoga.',
+  'Galti report': 'Sawaal ka jawab dene ke baad "🚩 Galti report karo" dabao.',
+  'Test analysis': 'Koi bhi test do — result screen par "Analysis 📊" milega.',
+  'NEET countdown': 'Home par upar countdown dikhta hai. More mein exam date badal sakte ho.',
+  'Roz ki yaad': 'More → "Roz ki yaad 🔔" On karo aur time chuno.'
+};
+function newTap(k) { const f = NEW_FEATS[k], hp = NEW_HELP[f[1]]; if (hp) toast(hp); setTimeout(() => new Function(f[4])(), hp ? 900 : 0); }
+function newFeaturesGrid() {
+  return `<div class="sec">✨ Naye features <span>v1.40 mein naya — tap karke dekho</span></div><div class="nfgrid">` +
+    NEW_FEATS.map((f, k) => {
+      const extra = f[1] === 'Aaj ka revision' ? srsDue().length + ' aaj' : f[1] === 'Mere notes' ? Object.keys(notesStore()).length + ' notes'
+        : f[1] === 'Diagram practice' ? imgGids().length + ' Q' : f[1] === 'NEET PYQ' ? (pyqGids().length ? pyqGids().length + ' Q' : 'jald') : f[1] === 'NEET countdown' ? daysLeft() + ' din' : '';
+      return `<div class="nf" style="--c:${f[3]}" onclick="newTap(${k})"><span class="nb">NEW</span><div class="e">${f[0]}</div>
+        <div class="n">${f[1]}</div><div class="s">${f[2]}</div>${extra ? `<div class="x">${extra}</div>` : ''}</div>`;
+    }).join('') + '</div>';
+}
+
 applyTheme();
 render();
 (function () {
@@ -1755,3 +2055,4 @@ render();
   save('neet_lastver', APP_VER);
   if (/[?&]v=/.test(location.search)) try { history.replaceState(null, '', location.pathname); } catch (e) {}
 })();
+
