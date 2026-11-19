@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.40';
+const APP_VER = 'v1.41';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -539,7 +539,8 @@ SCREENS.home = function () {
 function esc(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function subjTile(s) {
   const chs = chaptersOf(s.id), sm = summary(allGids(chs));
-  return `<div class="tile" onclick="openSubject('${s.id}')"><div class="ic">${s.ic}</div><div class="g1">
+  const col = { phy: '#7c3aed', chem: '#0891b2', bot: '#16a34a', zoo: '#e11d48' }[s.id] || '#ca8a04';
+  return `<div class="tile stile" style="--c:${col}" onclick="openSubject('${s.id}')"><div class="ic">${s.ic}</div><div class="g1">
     <div class="n">${s.name} <span class="muted" style="font-weight:600">· ${s.hi}</span></div>
     <div class="s">${chs.length} chapters · ${sm.total} Qs · accuracy ${pct(sm.acc)}</div>
     <div class="bar"><i style="width:${sm.total ? sm.seen / sm.total * 100 : 0}%"></i></div></div><div class="ch">›</div></div>`;
