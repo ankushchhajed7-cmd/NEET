@@ -1,7 +1,7 @@
 /* NEET service worker — network first, offline fallback.
    Har update par CACHE ka number badal do: neet-v2, neet-v3 ...
    Naya chapter file add karo to FILES list mein bhi jodo (offline ke liye). */
-const CACHE = 'neet-v40';
+const CACHE = 'neet-v41';
 const FILES = [
   './', './index.html', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
@@ -49,4 +49,14 @@ self.addEventListener('fetch', e => {
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }))
   );
+});
+
+/* Roz ki yaad — Android Chrome periodic background sync (jahan support ho) */
+self.addEventListener('periodicsync', e => {
+  if (e.tag !== 'neet-remind') return;
+  e.waitUntil(self.registration.showNotification('NEET 📚', { body: 'Aaj ka target aur revision baaki hai — 10 minute padh lo!', icon: 'icons/icon-192.png', tag: 'neet-remind' }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window' }).then(ws => ws.length ? ws[0].focus() : clients.openWindow('./')));
 });
