@@ -3,7 +3,7 @@
 'use strict';
 
 /* Har release par badhao (sw.js ka CACHE bhi) */
-const APP_VER = 'v1.38';
+const APP_VER = 'v1.39';
 
 /* ================= storage ================= */
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -175,6 +175,7 @@ function addRevision(i, g) {
     RUN.items.splice(at, 0, x); RUN.ans.splice(at, 0, null); RUN.rev.splice(at, 0, false);
     RUN.done.splice(at, 0, false); RUN.tq.splice(at, 0, 0); RUN.xr.splice(at, 0, true);
   });
+  if (RUN.secs) RUN.secs = secsOf(RUN.items);
   toast('🔁 Is topic ke ' + picks.length + ' revision sawaal agle aayenge');
 }
 function weakMix(list, per, max) {
@@ -514,6 +515,8 @@ SCREENS.home = function () {
     <div class="qa" onclick="go('tests')"><div class="e">🏆</div><div class="n">NEET Mock</div><div class="s">180 Q · 180 min</div></div>
     <div class="qa" onclick="go('mistakes')"><div class="e">🎯</div><div class="n">Meri galtiyan</div><div class="s">${mk} Qs · ${weakPoints().length} points</div></div>
     <div class="qa" onclick="startList(bookmarks(),'Bookmarks','practice')"><div class="e">⭐</div><div class="n">Bookmarks</div><div class="s">${bm} saved</div></div></div>
+    <div class="tile glow" style="margin-top:9px" onclick="go('sets')"><div class="ic">🗂️</div><div class="g1"><div class="n">NEET Sets (180 Q)</div>
+      <div class="s">Har set: Physics 45 · Chemistry 45 · Botany 45 · Zoology 45</div></div><div class="ch">›</div></div>
     <div class="tile glow" style="margin-top:9px" onclick="go('unlimited')"><div class="ic">♾️</div><div class="g1"><div class="n">Unlimited practice</div>
       <div class="s">Easy · Medium · Hard — jab tak padho, sawaal aate rahenge</div></div><div class="ch">›</div></div>
     <div class="tile glow" style="margin-top:9px" onclick="openAsk()"><div class="ic">🧑‍🏫</div><div class="g1"><div class="n">Doubt poocho</div>
@@ -1460,6 +1463,61 @@ function startMixed(sid, n, mode) {
   const s = sid ? subjOf(sid) : null;
   startList(items, (s ? s.name : 'Mixed') + (mode === 'test' ? ' test' : ' · Quick ' + n), mode || 'practice');
 }
+/* subject-wise section helpers (NEET Sets) */
+function secsOf(items) {   // [{sid, start, n}]
+  const out = []; items.forEach((g, i) => { const sid = QIDX[g] && QIDX[g].c.subj; const last = out[out.length - 1];
+    if (last && last.sid === sid) last.n++; else out.push({ sid: sid, start: i, n: 1 }); });
+  return out;
+}
+function secBar() {
+  if (!RUN || !RUN.secs || RUN.unl) return '';
+  const i = RUN.i, cur = RUN.secs.find(x => i >= x.start && i < x.start + x.n);
+  return `<div style="display:flex;gap:6px;overflow-x:auto;margin:-2px 0 10px">` + RUN.secs.map(x => {
+    const done = RUN.ans.slice(x.start, x.start + x.n).filter(v => v != null).length, on = x === cur;
+    return `<button class="tag ${on ? 'g' : ''}" style="border:none;cursor:pointer;white-space:nowrap;padding:7px 10px;font-size:12px;${on ? 'font-weight:800' : ''}" onclick="goQ(${x.start})">${subjOf(x.sid).ic} ${subjOf(x.sid).name} ${done}/${x.n}</button>`;
+  }).join('') + `</div>` + (cur ? `<div class="muted" style="font-size:12px;margin:-4px 0 8px">Section: <b>${subjOf(cur.sid).name}</b> · Q ${i - cur.start + 1} of ${cur.n} (overall ${i + 1}/${RUN.items.length})</div>` : '');
+}
+/* 🗂️ NEET Sets — saare sawaal pakke sets mein; har set = har subject ke 45 (4 × 45 = 180), subject-wise portions */
+const SET_PER = 45;
+let SETS = null;
+function hashG(g) { let h = 2166136261; for (let i = 0; i < g.length; i++) { h ^= g.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function buildSets() {
+  if (SETS) return SETS;
+  const subs = SUBJ.filter(x => chaptersOf(x.id).some(c => !c.demo && (c.qs || []).length));
+  const pools = subs.map(x => allGids(chaptersOf(x.id).filter(c => !c.demo)).sort((a, b) => hashG(a) - hashG(b)));
+  // sets ki ginti sabse bade subject se; chhote subjects ke sawaal ghoom kar (revision) dobara aate hain — har set mein 45 × 4
+  const n = Math.max(...pools.map(p => Math.ceil(p.length / SET_PER))), out = [];
+  for (let k = 0; k < n; k++) {
+    const set = [];
+    pools.forEach(p => { if (!p.length) return; const take = Math.min(SET_PER, p.length); for (let j = 0; j < take; j++) set.push(p[(k * SET_PER + j) % p.length]); });
+    out.push(set);
+  }
+  return (SETS = out);
+}
+function startSet(k, mode) {
+  const sets = buildSets(); if (!sets[k]) return;
+  startList(sets[k].slice(), 'NEET Set ' + (k + 1) + (mode === 'test' ? ' · test' : ''), mode || 'practice');
+  if (RUN) { RUN.secs = secsOf(RUN.items); RUN.setNo = k; save('neet_lastset', k); if (RUN.mode === 'test') saveRun(); render(); }
+}
+SCREENS.sets = function () {
+  const sets = buildSets(), mode = state.setMode || 'practice', last = load('neet_lastset', -1);
+  const st = sets.map(x => summary(x));
+  const next = st.findIndex(x => x.seen < x.total);
+  let h = `<div class="topbar"><button class="link" onclick="go('home')">‹ Back</button><div class="muted">🗂️ NEET Sets</div></div>
+    <div class="h1">NEET Sets 🗂️</div>
+    <div class="muted" style="margin-top:4px;line-height:1.5">Saare ${allGids(CHS).length} sawaal ${sets.length} sets mein bante hain. Har set = <b>180 sawaal</b>: Physics 45 · Chemistry 45 · Botany 45 · Zoology 45, apne alag hisse mein. Upar ke tab se kisi bhi subject par jao. Jis subject ke sawaal kam hain, uske sawaal aakhri sets mein dobara (revision) aate hain.</div>
+    <div style="display:flex;gap:7px;margin-top:12px">` +
+    [['practice', '📖 Practice'], ['test', '📝 Test (180 min, +4/−1)']].map(x => `<button class="tag ${mode === x[0] ? 'g' : ''}" style="border:none;cursor:pointer;font-size:13px;padding:8px 12px" onclick="state.setMode='${x[0]}';render()">${x[1]}</button>`).join('') + `</div>`;
+  if (next >= 0) h += `<button class="btn glow" style="margin-top:12px" onclick="startSet(${next},'${mode}')">▶ Set ${next + 1} ${st[next].seen ? 'continue' : 'shuru'} karo (${st[next].seen}/${st[next].total})</button>`;
+  h += `<div class="sec">Sets <span>${st.filter(x => x.seen >= x.total).length}/${sets.length} complete</span></div><div class="grid2">`;
+  sets.forEach(function (x, k) {
+    const sm = st[k], full = sm.seen >= sm.total;
+    h += `<div class="qa" style="${k === last ? 'border-color:var(--gold)' : ''}" onclick="startSet(${k},'${mode}')"><div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="n">Set ${k + 1}</div>${ring(sm.total ? sm.seen / sm.total : 0, full ? '✓' : sm.seen, 34)}</div>
+      <div class="s">${sm.total} Q · ${sm.seen}/${sm.total} done${sm.seen ? ' · acc ' + pct(sm.acc) : ''}</div></div>`;
+  });
+  return h + '</div>';
+};
 function startMock() {
   let items = [];
   SUBJ.forEach(s => { items = items.concat(shuffle(allGids(chaptersOf(s.id))).slice(0, s.neet || 45)); });
@@ -1542,6 +1600,7 @@ SCREENS.run = function () {
     <div class="bar" style="margin-top:6px"><i style="width:${RUN.unl ? 100 : (i + 1) / n * 100}%"></i></div></div>
     ${mode === 'test' ? '<div class="timer" id="timer">⏱</div>' : `<button class="iconbtn ${isBm ? 'on' : ''}" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>`}</div>`;
 
+  h += secBar();
   h += `<div class="card"><div class="qhead"><div class="qno">${RUN.unl ? 'Q ' + (i + 1) : 'Q ' + (i + 1) + ' / ' + n}</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
     ${RUN.xr && RUN.xr[i] ? '<span class="tag bad">🔁 Revision</span>' : ''}${RUN.unl ? '<span class="tag">' + LVL[q.lvl || 2][1] + ' ' + LVL[q.lvl || 2][0] + '</span>' : ''}<span class="tag">${subjOf(c.subj).name}</span>${q.type === 'num' ? '<span class="tag g">🧮 Numerical</span>' : ''}${q.tag ? `<span class="tag">${esc(q.tag)}</span>` : ''}${q.pyq ? `<span class="tag g">${esc(q.pyq)}</span>` : ''}
     ${mode === 'test' ? `<button class="tag" style="border:none;cursor:pointer" onclick="toggleBm('${g}')">${isBm ? '★' : '☆'}</button>` : ''}

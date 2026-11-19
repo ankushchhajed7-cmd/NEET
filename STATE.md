@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.38'`
-- `sw.js` → `CACHE = 'neet-v39'`
+- `app.js` → `APP_VER = 'v1.39'`
+- `sw.js` → `CACHE = 'neet-v40'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.38): 80 chapters · 4446 points · 10262 questions.
 
 ## Version history (recent)
+- **v1.39** — 🗂️ *NEET Sets* (naya page, Home se): saare sawaal pakke sets mein (`buildSets`, gid-hash order se stable); har set = 180 Q — Physics 45, Chemistry 45, Botany 45, Zoology 45 (`SET_PER`), subject-wise portions. Run screen par section tabs (`RUN.secs`, `secBar`). Practice / Test (180 min, +4/−1) toggle; har set ka progress ring, done/total, accuracy; "Set N continue" button. Purane features (Quick 20, Tests tab, Mock) unchanged.
 - **v1.38** — Organic Chemistry + extras (`data/chem/`): XI Ch 8 *Organic Chemistry – Some Basic Principles and Techniques* (40 points, 100 questions), Ch 9 *Hydrocarbons* (41, 103); XII Ch 6 *Haloalkanes and Haloarenes* (32, 86), Ch 7 *Alcohols, Phenols and Ethers* (32, 81), Ch 8 *Aldehydes, Ketones and Carboxylic Acids* (31, 82), Ch 9 *Amines* (30, 74); plus `12-11` *The p-Block Elements (Groups 15–18)* from the earlier XII edition Unit 7 (40, 105) and `12-12` *Systematic Qualitative Analysis* from the XII Lab Manual Unit 7 (26, 69). Total 272 points, 698 questions, 39 numericals, 34 diagram questions.
 - **v1.37** — Inorganic Chemistry (`data/chem/`): XI Ch 3 *Classification of Elements and Periodicity in Properties* (47 points, 128 questions, 9 numericals), Ch 4 *Chemical Bonding and Molecular Structure* (55, 133, 16); XII Ch 4 *The d- and f-Block Elements* (48, 128, 11), Ch 5 *Coordination Compounds* (35, 102, 13). Total 185 points, 491 questions, 49 numericals, 21 graph/diagram questions. Covers every section, table, problem/example, intext question, summary and exercises.
 - **v1.36** — Chapter page par bada green **🎬 Video lesson — poora chapter** button: har point ka video ek ke baad ek apne aap (playlist), ‹ Pichhla / Agla › point, jahan chhoda wahin se (`neet_vpos`).
