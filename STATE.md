@@ -3,8 +3,8 @@
 Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file update hoti hai.
 
 ## Current version
-- `app.js` → `APP_VER = 'v1.40'`
-- `sw.js` → `CACHE = 'neet-v41'`
+- `app.js` → `APP_VER = 'v1.41'`
+- `sw.js` → `CACHE = 'neet-v42'`
 
 ## Content (NCERT)
 | Subject | Class 11 | Class 12 |
@@ -17,6 +17,7 @@ Yukti ka NEET practice PWA (vanilla JS, GitHub Pages). Har push par ye file upda
 Total (v1.38): 80 chapters · 4446 points · 10262 questions.
 
 ## Version history (recent)
+- **v1.41** — Subject list (Home + Subjects tab) ki har patti alag rang: Physics violet, Chemistry cyan, Botany green, Zoology rose (`.tile.stile`, `--c`).
 - **v1.40** — ✨ Home par *Naye features* rangeen squares (NEW badge, `NEW_FEATS`). 🔁 Aaj ka revision (SRS 1/3/7/21 din, `neet_srs`, `srsUpdate` in recordAnswer). 🚩 Galti report (`neet_reports`, Reports screen, share/copy). 📝 Sawaal par note (`neet_notes`, Mere notes). 📜 NEET PYQ screen (`q.pyq` tag; abhi data nahi). 📊 Result par test analysis (chapter-wise, time, jaldbazi galat). 📉 Kamzor chapters (5+ Q, <80%, galtiyan button). ⏳ NEET countdown + roz ka plan (`settings.neetDate`, default 2027-05-02). 📄 Chapter short notes / formula sheet + print. 🃏 Flashcards (`startFlash`). 🖼 Diagram practice (img wale Q). 🔔 Roz ki yaad notification (`settings.remind/remindTime`, SW periodicsync). Extras block `render()` se pehle (const TDZ).
 - **v1.39** — 🗂️ *NEET Sets* (naya page, Home se): saare sawaal pakke sets mein (`buildSets`, gid-hash order se stable); har set = 180 Q — Physics 45, Chemistry 45, Botany 45, Zoology 45 (`SET_PER`), subject-wise portions. Run screen par section tabs (`RUN.secs`, `secBar`). Practice / Test (180 min, +4/−1) toggle; har set ka progress ring, done/total, accuracy; "Set N continue" button. Purane features (Quick 20, Tests tab, Mock) unchanged.
 - **v1.38** — Organic Chemistry + extras (`data/chem/`): XI Ch 8 *Organic Chemistry – Some Basic Principles and Techniques* (40 points, 100 questions), Ch 9 *Hydrocarbons* (41, 103); XII Ch 6 *Haloalkanes and Haloarenes* (32, 86), Ch 7 *Alcohols, Phenols and Ethers* (32, 81), Ch 8 *Aldehydes, Ketones and Carboxylic Acids* (31, 82), Ch 9 *Amines* (30, 74); plus `12-11` *The p-Block Elements (Groups 15–18)* from the earlier XII edition Unit 7 (40, 105) and `12-12` *Systematic Qualitative Analysis* from the XII Lab Manual Unit 7 (26, 69). Total 272 points, 698 questions, 39 numericals, 34 diagram questions.
